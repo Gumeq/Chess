@@ -458,3 +458,5 @@ function GenerateKingMoves(startSquare, piece) {
 		document.getElementById("c" + moves[n]).classList.toggle("moves");
 	}
 }
+
+// If I change this now does this work ?
