@@ -1,12 +1,19 @@
+"use strict";
+
 const cells = document.getElementsByClassName("cell");
+
 var allElements = document.querySelectorAll(".moves");
+
 let selectedId = "none";
 let selectedIndex = 0;
+
 let childId;
+
 var enPassantSquare = -1;
 var enPassantRounds = 0;
 var enPassantColor;
 var enPassantPiece;
+
 const DirectionOffset = [8, -8, -1, 1, 7, -7, 9, -9];
 const DirectionOffsetKnight = [17, 10, -6, 15, -10, -17, 6, -15];
 var NumSquaresToEdge = [[], []];
@@ -14,7 +21,14 @@ const Move = {
 	StartSquare: 0,
 	TargetSquare: 0,
 };
+
 var moves = new Array();
+
+var WhiteAttacks = new Array();
+var BlackAttacks = new Array();
+var WhitePinnedPieces = new Array();
+var BlackPinnedPieces = new Array();
+
 for (var i = 0; i < cells.length; i++) {
 	cells[i].addEventListener("click", function () {
 		// if cell has piece on it
@@ -159,43 +173,52 @@ function moveMade() {
 }
 
 function PrecomputedData() {
-	for (let file = 0; file < 8; file++) {
-		for (let rank = 0; rank < 8; rank++) {
-			let numNorth = 7 - rank;
-			let numSouth = rank;
-			let numWest = file;
-			let numEast = 7 - file;
+	for (let rank = 0; rank < 8; rank++) {
+		for (let file = 0; file < 8; file++) {
+			const numNorth = 7 - rank;
+			const numSouth = rank;
+			const numWest = file;
+			const numEast = 7 - file;
 
-			let squareIndex = rank * 8 + file;
+			const NWMin = Math.min(numNorth, numWest);
+			const SEMin = Math.min(numSouth, numEast);
+			const NEMin = Math.min(numNorth, numEast);
+			const SWMin = Math.min(numSouth, numWest);
 
-			const minsToEdge = {
+			const squareIndex = rank * 8 + file;
+			NumSquaresToEdge[squareIndex] = {
 				numNorth,
 				numSouth,
 				numWest,
 				numEast,
-				NWMin: Math.min(numNorth, numWest),
-				SEMin: Math.min(numSouth, numEast),
-				NEMin: Math.min(numNorth, numEast),
-				SWMin: Math.min(numSouth, numWest),
+				NWMin,
+				SEMin,
+				NEMin,
+				SWMin,
 			};
-			NumSquaresToEdge[squareIndex] = minsToEdge;
 		}
 	}
 }
+
 function GenerateMoves(cPosition) {
-	let rank = Math.floor((63 - cPosition) / 8);
-	let file = cPosition % 8;
-	let piece = document.getElementById("c" + cPosition);
+	const rank = Math.floor((63 - cPosition) / 8);
+	const file = cPosition % 8;
+	const piece = document.getElementById("c" + cPosition);
 	if (piece.hasChildNodes()) {
-		if (piece.children[0].classList[0] == colorToMove) {
-			if (Board.ChessBoard[rank][file] % 8 > 3) {
-				GenerateSlidingMoves(cPosition, piece);
-			} else if (Board.ChessBoard[rank][file] % 8 == 3) {
-				GenerateKnightMoves(cPosition, piece);
-			} else if (Board.ChessBoard[rank][file] % 8 == 2) {
-				GeneratePawnMoves(cPosition, piece);
-			} else if (Board.ChessBoard[rank][file] % 8 == 1) {
-				GenerateKingMoves(cPosition, piece);
+		if (piece.children[0].classList.contains(colorToMove)) {
+			const pieceType = Board.ChessBoard[rank][file] % 8;
+			switch (pieceType) {
+				case 1:
+					GenerateKingMoves(cPosition, piece);
+					break;
+				case 2:
+					GeneratePawnMoves(cPosition, piece);
+					break;
+				case 3:
+					GenerateKnightMoves(cPosition, piece);
+					break;
+				default:
+					GenerateSlidingMoves(cPosition, piece);
 			}
 		}
 	}
@@ -224,9 +247,6 @@ function GenerateSlidingMoves(startSquare, piece) {
 		) {
 			let targetSquare =
 				startSquare + DirectionOffset[directionIndex] * (n + 1);
-			let targetRank = Math.floor((63 - targetSquare) / 8);
-			let targetFile = targetSquare % 8;
-			let pieceOnTargetSquare = Board.ChessBoard[targetRank][targetFile];
 			//Blocked by friendly piece, cant move further
 			if (
 				document.getElementById("c" + targetSquare).hasChildNodes() &&
@@ -251,155 +271,119 @@ function GenerateSlidingMoves(startSquare, piece) {
 	}
 }
 
-function GenerateKnightMoves(startSquare, piece) {
-	let targetSquare;
-	let targetRank;
-	let startRank = startSquare % 8;
-	for (let n = 0; n < DirectionOffsetKnight.length; n++) {
-		targetSquare = startSquare + DirectionOffsetKnight[n];
-		if (targetSquare >= 0 && targetSquare <= 63) {
-			targetRank = targetSquare % 8;
-			if (document.getElementById("c" + targetSquare).hasChildNodes()) {
-				if (
-					document.getElementById("p" + targetSquare).classList[0] !=
-					colorToMove
-				) {
-					if (Object.values(NumSquaresToEdge[startSquare])[2] < 2) {
-						if (targetRank <= startRank + 2) {
-							moves.push(targetSquare);
-						}
-					} else if (
-						Object.values(NumSquaresToEdge[startSquare])[3] < 2
-					) {
-						if (targetRank >= startRank - 2) {
-							moves.push(targetSquare);
-						}
-					}
-					if (
-						Object.values(NumSquaresToEdge[startSquare])[2] >= 2 &&
-						Object.values(NumSquaresToEdge[startSquare])[3] >= 2
-					) {
-						moves.push(targetSquare);
-					}
-				}
-			} else {
-				if (Object.values(NumSquaresToEdge[startSquare])[2] < 2) {
-					if (targetRank <= startRank + 2) {
-						moves.push(targetSquare);
-					}
-				} else if (
-					Object.values(NumSquaresToEdge[startSquare])[3] < 2
-				) {
-					if (targetRank >= startRank - 2) {
-						moves.push(targetSquare);
-					}
-				}
-				if (
-					Object.values(NumSquaresToEdge[startSquare])[2] >= 2 &&
-					Object.values(NumSquaresToEdge[startSquare])[3] >= 2
-				) {
-					moves.push(targetSquare);
-				}
-			}
-		}
-	}
+function isSquareOnBoard(square) {
+	return square >= 0 && square <= 63;
+}
+function paintMoves() {
 	for (let n = 0; n < moves.length; n++) {
 		document.getElementById("c" + moves[n]).classList.toggle("moves");
 	}
 }
 
-function GeneratePawnMoves(startSquare, piece) {
+function GenerateKnightMoves(startSquare, piece) {
 	let targetSquare;
-	let startRank = Math.floor((63 - startSquare) / 8);
-	let startFile = startSquare % 8;
-	if (document.getElementById("p" + startSquare).classList[0] == "White") {
-		if (startSquare >= 8 && startSquare <= 15) {
-			targetSquare = startSquare + 8;
-			if (document.getElementById("c" + targetSquare).hasChildNodes()) {
-			} else {
-				targetSquare = startSquare + 16;
-				if (
-					document.getElementById("c" + targetSquare).hasChildNodes()
-				) {
-				} else {
-					moves.push(startSquare + 16);
-					enPassantColor = "White";
-					enPassantSquare = startSquare + 8;
-					enPassantPiece = startSquare + 16;
+	let targetRank;
+	const startRank = startSquare % 8;
+	for (let n = 0; n < DirectionOffsetKnight.length; n++) {
+		targetSquare = startSquare + DirectionOffsetKnight[n];
+		const targetIsOnBoard = isSquareOnBoard(targetSquare);
+		if (targetIsOnBoard) {
+			targetRank = targetSquare % 8;
+			const hasChildren = document
+				.getElementById("c" + targetSquare)
+				.hasChildNodes();
+			if (
+				(hasChildren &&
+					document.getElementById("p" + targetSquare).classList[0] !=
+						colorToMove) ||
+				!hasChildren
+			) {
+				const edgeDistanceWest =
+					Object.values(NumSquaresToEdge[startSquare])[2] < 2;
+				const edgeDistanceEast =
+					Object.values(NumSquaresToEdge[startSquare])[3] < 2;
+				if (edgeDistanceWest) {
+					if (targetRank <= startRank + 2) {
+						moves.push(targetSquare);
+					}
+				} else if (edgeDistanceEast) {
+					if (targetRank >= startRank - 2) {
+						moves.push(targetSquare);
+					}
+				}
+				if (!edgeDistanceWest && !edgeDistanceEast) {
+					moves.push(targetSquare);
 				}
 			}
 		}
-		targetSquare = startSquare + 7;
-		if (startRank == 3 && targetSquare == enPassantSquare) {
+	}
+	paintMoves();
+}
+
+function GeneratePawnMoves(startSquare, piece) {
+	const startRank = Math.floor((63 - startSquare) / 8);
+	const startFile = startSquare % 8;
+	const pawnColor = document.getElementById("p" + startSquare).classList[0];
+	let targetSquare;
+
+	const getTargetSquare = (delta) => {
+		const targetSquare = startSquare + delta;
+		const targetRow = Math.floor((63 - targetSquare) / 8);
+		const targetIsOnBoard = isSquareOnBoard(targetSquare);
+		if (!targetIsOnBoard) {
+			return null; // target square is off the board
+		}
+		const targetCell = document.getElementById("c" + targetSquare);
+		if (targetCell.hasChildNodes()) {
+			if (
+				pawnColor !==
+				document.getElementById("p" + targetSquare).classList[0]
+			) {
+				if (delta !== 8 && delta != -8) {
+					return targetSquare;
+				}
+			}
+			return null; // target square is occupied
+		}
+		return targetSquare;
+	};
+
+	const addMove = (delta) => {
+		const targetSquare = getTargetSquare(delta);
+		if (targetSquare !== null) {
 			moves.push(targetSquare);
 		}
-		if (
-			document.getElementById("c" + targetSquare).hasChildNodes() &&
-			document.getElementById("p" + targetSquare).classList[0] == "Black"
-		) {
-			moves.push(targetSquare);
-		}
-		targetSquare = startSquare + 9;
-		if (startRank == 3 && targetSquare == enPassantSquare) {
-			moves.push(targetSquare);
-		}
-		if (
-			document.getElementById("c" + targetSquare).hasChildNodes() &&
-			document.getElementById("p" + targetSquare).classList[0] == "Black"
-		) {
-			moves.push(targetSquare);
-		}
-		targetSquare = startSquare + 8;
-		if (document.getElementById("c" + targetSquare).hasChildNodes()) {
-		} else {
-			moves.push(targetSquare);
-		}
+	};
+
+	const captureDelta = pawnColor === "White" ? 1 : -1;
+	const captureSquare = getTargetSquare(captureDelta);
+	targetSquare = startSquare + 7 * captureDelta;
+	if (document.getElementById("c" + targetSquare).hasChildNodes()) {
+		addMove(7 * captureDelta);
+	}
+	targetSquare = startSquare + 9 * captureDelta;
+	if (document.getElementById("c" + targetSquare).hasChildNodes()) {
+		addMove(9 * captureDelta);
+	}
+
+	const forwardDelta = pawnColor === "White" ? 8 : -8;
+	if (!getTargetSquare(forwardDelta)) {
 	} else {
-		if (startSquare >= 48 && startSquare <= 55) {
-			targetSquare = startSquare - 8;
-			if (document.getElementById("c" + targetSquare).hasChildNodes()) {
-			} else {
-				targetSquare = startSquare - 16;
-				if (
-					document.getElementById("c" + targetSquare).hasChildNodes()
-				) {
-				} else {
-					moves.push(startSquare - 16);
-					enPassantSquare = startSquare - 8;
-					enPassantPiece = startSquare - 16;
-					enPassantColor = "Black";
-				}
-			}
-		}
-		targetSquare = startSquare - 7;
-		if (startRank == 4 && targetSquare == enPassantSquare) {
-			moves.push(targetSquare);
-		}
-		if (
-			document.getElementById("c" + targetSquare).hasChildNodes() &&
-			document.getElementById("p" + targetSquare).classList[0] == "White"
-		) {
-			moves.push(targetSquare);
-		}
-		targetSquare = startSquare - 9;
-		if (startRank == 4 && targetSquare == enPassantSquare) {
-			moves.push(targetSquare);
-		}
-		if (
-			document.getElementById("c" + targetSquare).hasChildNodes() &&
-			document.getElementById("p" + targetSquare).classList[0] == "White"
-		) {
-			moves.push(targetSquare);
-		}
-		targetSquare = startSquare - 8;
-		if (document.getElementById("c" + targetSquare).hasChildNodes()) {
+		addMove(forwardDelta);
+	}
+
+	if (
+		(startRank === 6 && pawnColor === "White") ||
+		(startRank === 1 && pawnColor === "Black")
+	) {
+		// check double pawn push from starting rank
+		if (!getTargetSquare(forwardDelta * 2)) {
+			// pawn is blocked and can't move
 		} else {
-			moves.push(targetSquare);
+			moves.push(startSquare + 2 * forwardDelta);
 		}
 	}
-	for (let n = 0; n < moves.length; n++) {
-		document.getElementById("c" + moves[n]).classList.toggle("moves");
-	}
+	paintMoves();
 }
 
 function GenerateKingMoves(startSquare, piece) {
@@ -458,5 +442,3 @@ function GenerateKingMoves(startSquare, piece) {
 		document.getElementById("c" + moves[n]).classList.toggle("moves");
 	}
 }
-
-// If I change this now does this work ?

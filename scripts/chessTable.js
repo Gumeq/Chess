@@ -2,22 +2,15 @@ var center = document.createElement("center");
 var ChessTable = document.createElement("table");
 ChessTable.setAttribute("id", "ChessTable");
 
-for (var file = 0; file < 8; file++) {
-	var row = document.createElement("tr");
-	for (var rank = 0; rank < 8; rank++) {
-		var cellNum = 64 - 8 * (file + 1) + rank;
-		var cellID = "c" + cellNum.toString();
-		var cell = document.createElement("td");
-		var number = document.createTextNode(cellNum);
-
-		if ((rank + file) % 2 == 0) {
-			cell.setAttribute("class", "cell whiteCell");
-		} else {
-			cell.setAttribute("class", "cell blackCell");
-		}
-
+for (let file = 0; file < 8; file++) {
+	const row = document.createElement("tr");
+	for (let rank = 0; rank < 8; rank++) {
+		const cellNum = 64 - 8 * (file + 1) + rank;
+		const cellID = `c${cellNum}`;
+		const cell = document.createElement("td");
 		cell.setAttribute("id", cellID);
-		// cell.appendChild(number);
+		cell.className =
+			(rank + file) % 2 ? "cell blackCell" : "cell whiteCell";
 		row.appendChild(cell);
 	}
 	ChessTable.appendChild(row);

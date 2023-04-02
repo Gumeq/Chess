@@ -7,12 +7,12 @@ const Piece = {
 	King: [1],
 	Pawn: [2],
 	Knight: [3],
-	Bishop: [4],
-	Rook: [5],
-	Queen: [6],
+	Bishop: [4, (isSliding = true)],
+	Rook: [5, (isSliding = true)],
+	Queen: [6, (isSliding = true)],
 
-	White: [8],
-	Black: [16],
+	White: [8, (isColor = "White")],
+	Black: [16, (isColor = "Black")],
 };
 
 var pieceTypeFromSymbol = {
@@ -78,8 +78,9 @@ function placePiece(pieceIndex, cPosition, rank, file) {
 
 function loadPositionFromFen(fen) {
 	let file = 0,
-		rank = 0;
-
+		rank = 0,
+		pieceColor,
+		pieceType;
 	for (let symbol of fen) {
 		if (symbol == "/") {
 			rank = 0;
@@ -88,14 +89,11 @@ function loadPositionFromFen(fen) {
 			if (parseInt(symbol) >= 0) {
 				rank += parseInt(symbol, 10);
 			} else {
-				const pieceColor =
+				pieceColor =
 					symbol === symbol.toUpperCase()
 						? Piece.White[0]
 						: Piece.Black[0];
-
-				const symbolLower = symbol.toLowerCase();
-				const pieceType = pieceTypeFromSymbol[symbolLower][0];
-
+				pieceType = pieceTypeFromSymbol[symbol.toLowerCase()][0];
 				const finalPiece = pieceColor + pieceType;
 				placePiece(finalPiece, 0, file, rank);
 				rank++;
