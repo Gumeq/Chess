@@ -1,5 +1,15 @@
 "use strict";
 
+// TO DO :
+// -pinned pieces
+// -legal moves
+// -checkmate
+// -castling
+
+var lastMoveFrom,
+	lastMoveTo,
+	lastMovePiece = [];
+
 const board = document.getElementById("board");
 const cells = document.querySelectorAll(".cell");
 
@@ -13,7 +23,11 @@ const DirectionOffset = [8, -8, -1, 1, 7, -7, 9, -9];
 const DirectionOffsetKnight = [17, 10, -6, 15, -10, -17, 6, -15];
 var NumSquaresToEdge = [[], []];
 
+var enPassantDelta = null;
+var enPassantMove = null;
+
 var moves = new Array();
+var legalMoves = new Array();
 
 const Move = {
 	StartSquare: 0,
@@ -47,6 +61,9 @@ for (let i = 0; i < cells.length; i++) {
 					const clickedCellId = parseInt(this.id.substring(1));
 					if (moves.includes(clickedCellId)) {
 						// move the selected piece to the clicked cell, removing any piece that was already there
+						lastMoveFrom = parseInt(selectedId.substring(1));
+						lastMoveTo = parseInt(this.id.substring(1));
+						lastMovePiece = selectedPiece.classList[1];
 						this.removeChild(clickedPiece);
 						placePiece(selectedIndex, this.id);
 						selectedPiece.remove();
@@ -64,6 +81,9 @@ for (let i = 0; i < cells.length; i++) {
 				} else {
 					// set the clicked cell as the new selected piece if it is a different piece of the same color
 					deleteMoves();
+					document
+						.getElementById(selectedId)
+						.parentElement.classList.remove("selected");
 					this.classList.toggle("selected");
 					selectedId = clickedPiece.id;
 					const selectedPieceType = Piece[clickedPiece.classList[1]];
@@ -99,6 +119,14 @@ for (let i = 0; i < cells.length; i++) {
 			if (moves.includes(clickedCellId)) {
 				// move the selected piece to the clicked cell, removing any piece that was already there
 				const selectedPiece = document.getElementById(selectedId);
+				if (enPassantMove === clickedCellId) {
+					document.getElementById(`p${lastMoveTo}`).remove();
+					enPassantMove = null;
+					enPassantDelta = null;
+				}
+				lastMoveFrom = parseInt(selectedId.substring(1));
+				lastMoveTo = parseInt(this.id.substring(1));
+				lastMovePiece = selectedPiece.classList[1];
 				selectedPiece.parentElement.classList.remove("selected");
 				deleteMoves();
 				selectedPiece.remove();
@@ -107,6 +135,7 @@ for (let i = 0; i < cells.length; i++) {
 				moveMade();
 			}
 		}
+		console.log(lastMoveFrom, lastMoveTo);
 	});
 }
 
@@ -337,6 +366,9 @@ function GeneratePawnMoves(startSquare, piece, color) {
 				}
 			}
 			return null; // target square is occupied
+		} else if (enPassantDelta) {
+			enPassantMove = targetSquare;
+			return targetSquare;
 		}
 		return targetSquare;
 	};
@@ -361,6 +393,26 @@ function GeneratePawnMoves(startSquare, piece, color) {
 	targetSquare = startSquare + 9 * captureDelta;
 	if (document.getElementById("c" + targetSquare).hasChildNodes()) {
 		addMove(9 * captureDelta);
+	}
+	const enPassantRank = color === "White" ? 1 : 6;
+	if (
+		lastMovePiece === "Pawn" &&
+		enPassantRank === Math.floor((63 - lastMoveFrom) / 8)
+	) {
+		if (color === "White") {
+			if (lastMoveTo === startSquare + 1) {
+				enPassantDelta = 9 * captureDelta;
+			} else if (lastMoveTo === startSquare - 1) {
+				enPassantDelta = 7 * captureDelta;
+			}
+		} else {
+			if (lastMoveTo === startSquare + 1) {
+				enPassantDelta = 7 * captureDelta;
+			} else if (lastMoveTo === startSquare - 1) {
+				enPassantDelta = 9 * captureDelta;
+			}
+		}
+		addMove(enPassantDelta);
 	}
 
 	// Check for non-capturing moves
@@ -469,5 +521,17 @@ function checkCheck(color) {
 		} else {
 			blackChecked = false;
 		}
+	}
+}
+
+function GenerateLegalMoves(color) {
+	if (color === "White") {
+		checkCheck(color);
+		if (whiteChecked) {
+			// make new legal moves
+		} else {
+			// legal moves will be the pseudo legal moves
+		}
+		GenerateMoves(color);
 	}
 }
