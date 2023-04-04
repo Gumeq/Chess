@@ -20,6 +20,13 @@ const Move = {
 	TargetSquare: 0,
 };
 
+// check things
+
+var whiteAttacks = new Array();
+var BlackAttacks = new Array();
+var whitePinned = new Array();
+var blackPinned = new Array();
+
 for (let i = 0; i < cells.length; i++) {
 	cells[i].addEventListener("click", function () {
 		// check if the clicked cell has any child nodes (i.e., pieces)
