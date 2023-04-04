@@ -20,12 +20,12 @@ const Move = {
 	TargetSquare: 0,
 };
 
-// check things
-
 var whiteAttacks = new Array();
-var BlackAttacks = new Array();
+var blackAttacks = new Array();
 var whitePinned = new Array();
 var blackPinned = new Array();
+var whiteChecked = false;
+var blackChecked = false;
 
 for (let i = 0; i < cells.length; i++) {
 	cells[i].addEventListener("click", function () {
@@ -50,7 +50,6 @@ for (let i = 0; i < cells.length; i++) {
 						this.removeChild(clickedPiece);
 						placePiece(selectedIndex, this.id);
 						selectedPiece.remove();
-
 						// clean up and update the UI
 						this.parentElement.classList.remove("selected");
 						deleteMoves();
@@ -74,7 +73,11 @@ for (let i = 0; i < cells.length; i++) {
 								? Piece.Black[0]
 								: Piece.White[0]
 						) + parseInt(selectedPieceType);
-					GenerateMoves(parseInt(selectedId.substring(1)));
+					GenerateMoves(
+						parseInt(selectedId.substring(1)),
+						colorToMove
+					);
+					paintMoves();
 				}
 			} else if (clickedPieceColor === colorToMove) {
 				// set the clicked cell as the new selected piece if there is no current selection and it is the correct color
@@ -87,7 +90,8 @@ for (let i = 0; i < cells.length; i++) {
 							? Piece.Black[0]
 							: Piece.White[0]
 					) + parseInt(selectedPieceType);
-				GenerateMoves(parseInt(selectedId.substring(1)));
+				GenerateMoves(parseInt(selectedId.substring(1)), colorToMove);
+				paintMoves();
 			}
 		} else if (selectedId !== "none") {
 			// check if there is a selected piece and the clicked cell is a valid move for that piece
@@ -171,7 +175,7 @@ function paintMoves() {
 }
 
 // This function generates moves for a given chess piece based on its type and current position
-function GenerateMoves(cPosition) {
+function GenerateMoves(cPosition, color) {
 	// Determine the rank and file of the current position on the board
 	const rank = Math.floor((63 - cPosition) / 8);
 	const file = cPosition % 8;
@@ -179,30 +183,29 @@ function GenerateMoves(cPosition) {
 	const piece = document.getElementById("c" + cPosition);
 	// Check if the piece is present on the board and belongs to the player who is currently making the move
 	if (piece.hasChildNodes()) {
-		if (piece.children[0].classList.contains(colorToMove)) {
+		if (piece.children[0].classList.contains(color)) {
 			// Get the type of the piece (king, pawn, knight, bishop or rook) at the current position
 			const pieceType = Board.ChessBoard[rank][file] % 8;
 			// Call a specific function to generate moves based on the type of the piece
 			switch (pieceType) {
 				case 1:
-					GenerateKingMoves(cPosition, piece);
+					GenerateKingMoves(cPosition, piece, color);
 					break;
 				case 2:
-					GeneratePawnMoves(cPosition, piece);
+					GeneratePawnMoves(cPosition, piece, color);
 					break;
 				case 3:
-					GenerateKnightMoves(cPosition, piece);
+					GenerateKnightMoves(cPosition, piece, color);
 					break;
 				default:
-					GenerateSlidingMoves(cPosition, piece);
+					GenerateSlidingMoves(cPosition, piece, color);
 			}
-			paintMoves();
 		}
 	}
 }
 
 // This function generates moves for a sliding chess piece (bishop or rook) based on its current position
-function GenerateSlidingMoves(startSquare, piece) {
+function GenerateSlidingMoves(startSquare, piece, color) {
 	// Determine the start and end direction indices based on the type of the sliding piece
 	let startDirIndex = document
 		.getElementById("p" + startSquare)
@@ -232,7 +235,7 @@ function GenerateSlidingMoves(startSquare, piece) {
 			// If the target square is blocked by a friendly piece, the sliding piece can't move any further in this direction
 			if (
 				document.getElementById("c" + targetSquare).hasChildNodes() &&
-				piece.children[0].classList[0] ==
+				color ==
 					document.getElementById("p" + targetSquare).classList[0]
 			) {
 				break;
@@ -242,7 +245,7 @@ function GenerateSlidingMoves(startSquare, piece) {
 			// If the target square is occupied by an opponent's piece, the sliding piece can't move any further in this direction after capturing it
 			if (
 				document.getElementById("c" + targetSquare).hasChildNodes() &&
-				piece.children[0].classList[0] !=
+				color !=
 					document.getElementById("p" + targetSquare).classList[0]
 			) {
 				break;
@@ -252,7 +255,7 @@ function GenerateSlidingMoves(startSquare, piece) {
 }
 
 // This function generates all possible moves for a knight from a given start square on the board.
-function GenerateKnightMoves(startSquare, piece) {
+function GenerateKnightMoves(startSquare, piece, color) {
 	// Initialize variables to be used within the function
 	let targetSquare;
 	let targetRank;
@@ -276,7 +279,7 @@ function GenerateKnightMoves(startSquare, piece) {
 			if (
 				(hasChildren &&
 					document.getElementById("p" + targetSquare).classList[0] !=
-						colorToMove) ||
+						color) ||
 				!hasChildren
 			) {
 				// Check the distance of the start square to the board edges in the west and east directions
@@ -304,7 +307,7 @@ function GenerateKnightMoves(startSquare, piece) {
 }
 
 // This function generates all possible moves for a pawn from a given start square on the board.
-function GeneratePawnMoves(startSquare, piece) {
+function GeneratePawnMoves(startSquare, piece, color) {
 	// Get the starting rank and file of the pawn
 	const startRank = Math.floor((63 - startSquare) / 8);
 	const startFile = startSquare % 8;
@@ -382,7 +385,7 @@ function GeneratePawnMoves(startSquare, piece) {
 }
 
 // This function generates all possible moves for a pawn from a given start square on the board.
-function GenerateKingMoves(startSquare, piece) {
+function GenerateKingMoves(startSquare, piece, color) {
 	// initialize variables
 	let targetSquare;
 	let targetRank;
@@ -404,7 +407,7 @@ function GenerateKingMoves(startSquare, piece) {
 			if (
 				(hasChildren &&
 					document.getElementById("p" + targetSquare).classList[0] !=
-						colorToMove) || // enemy piece, can capture
+						color) || // enemy piece, can capture
 				!hasChildren // unoccupied, can move
 			) {
 				// check if king is near edge of board and restrict moves accordingly
@@ -428,6 +431,43 @@ function GenerateKingMoves(startSquare, piece) {
 					moves.push(targetSquare);
 				}
 			}
+		}
+	}
+}
+
+function GenerateAttacks(color) {
+	for (let i = 0; i < 64; i++) {
+		const cell = document.getElementById(`c${i}`);
+		const piece = document.getElementById(`p${i}`);
+		if (cell.hasChildNodes() && piece.classList.contains(color)) {
+			GenerateMoves(i, color);
+		}
+	}
+	if (color === "White") {
+		whiteAttacks = [...moves];
+	} else {
+		blackAttacks = [...moves];
+	}
+	moves.length = 0;
+}
+
+function checkCheck(color) {
+	const king = document.getElementsByClassName(`${color} King`)[0];
+	const kingSquare = parseInt(king.id.substring(1));
+	console.log(king, kingSquare);
+	if (color === "White") {
+		GenerateAttacks("Black");
+		if (blackAttacks.includes(kingSquare)) {
+			whiteChecked = true;
+		} else {
+			whiteChecked = false;
+		}
+	} else {
+		GenerateAttacks("White");
+		if (whiteAttacks.includes(kingSquare)) {
+			blackChecked = true;
+		} else {
+			blackChecked = false;
 		}
 	}
 }
