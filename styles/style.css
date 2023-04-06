@@ -5,37 +5,37 @@ body {
 	height: 100vh;
 	margin: 0;
 	display: flex;
-	align-items: center;
 	justify-content: center;
+	flex-direction: row;
+	color: white;
+	margin-top: 10vh;
+	overflow: hidden;
 }
 .cell {
 	height: 100px;
 	width: 100px;
 	padding: 0;
+	cursor: pointer;
 }
 
 .blackCell {
-	background-color: rgb(136, 119, 183);
+	background-color: rgb(181, 136, 99);
 }
 
 .whiteCell {
-	background-color: rgb(239, 239, 239);
+	background-color: rgb(240, 217, 181);
 }
-
-h1 {
-	font-size: 100px;
-	font-weight: bold;
-	margin: 0;
-	color: white;
+.blackCellAttack {
+	background-color: #ca4747;
+}
+.whiteCellAttack {
+	background-color: #ff6363;
 }
 
 table {
 	table-layout: fixed;
 	border-collapse: collapse;
 	text-align: center;
-	font-size: 30px;
-	font-weight: bold;
-	color: rgba(0, 0, 0, 30%);
 }
 
 .Black {
@@ -48,9 +48,79 @@ table {
 }
 
 .selected {
-	background-color: rgb(200, 255, 100);
+	background-color: #ffaa5c;
 }
 
 .moves {
 	background-color: darkred;
+}
+#menu {
+	display: flex;
+	flex-direction: column;
+	margin-right: 5vw;
+	gap: 1vh;
+	/* align-self: flex-start; */
+}
+h1 {
+	padding: 0;
+	margin: 0;
+	font-size: 92px;
+	font-weight: 700;
+}
+h2 {
+	position: relative;
+	padding: 0;
+	margin: 0;
+	top: -30px;
+	font-size: 20px;
+	font-weight: 100;
+}
+h3 {
+	padding: 0;
+	margin: 0;
+	font-size: 30px;
+	font-weight: 400;
+}
+
+center {
+	position: relative;
+}
+#vanillaJS {
+	position: relative;
+	top: 50px;
+	left: 80px;
+}
+.heartbeat {
+	-webkit-animation: heartbeat 1.5s ease-in-out infinite both;
+	animation: heartbeat 1.5s ease-in-out infinite both;
+}
+
+img {
+	-webkit-animation: scale-in-center 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)
+		both;
+	animation: scale-in-center 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@-webkit-keyframes scale-in-center {
+	0% {
+		-webkit-transform: scale(0);
+		transform: scale(0);
+		opacity: 1;
+	}
+	100% {
+		-webkit-transform: scale(1);
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+@keyframes scale-in-center {
+	0% {
+		-webkit-transform: scale(0);
+		transform: scale(0);
+		opacity: 1;
+	}
+	100% {
+		-webkit-transform: scale(1);
+		transform: scale(1);
+		opacity: 1;
+	}
 }

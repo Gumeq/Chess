@@ -5,17 +5,18 @@
 // -legal moves
 // -checkmate
 // -castling
+// -add UI
+// -make it responsive and mobile friendly
+// -add ranks and files to cell edges
 
-var lastMoveFrom,
-	lastMoveTo,
-	lastMovePiece = [];
+var lastMoveFrom, lastMoveTo, lastMovePiece;
 
 const board = document.getElementById("board");
 const cells = document.querySelectorAll(".cell");
 
 let selectedId = "none";
 let selectedIndex = 0;
-const selected = document.getElementById(selectedId);
+let selected = document.getElementById(selectedId);
 
 let childId;
 
@@ -36,6 +37,8 @@ const Move = {
 
 var whiteAttacks = new Array();
 var blackAttacks = new Array();
+var checkingPieceWhite = new Array();
+var checkingPieceBlack = new Array();
 var whitePinned = new Array();
 var blackPinned = new Array();
 var whiteChecked = false;
@@ -64,6 +67,9 @@ for (let i = 0; i < cells.length; i++) {
 						lastMoveFrom = parseInt(selectedId.substring(1));
 						lastMoveTo = parseInt(this.id.substring(1));
 						lastMovePiece = selectedPiece.classList[1];
+						selectedPiece.parentElement.classList.remove(
+							"selected"
+						);
 						this.removeChild(clickedPiece);
 						placePiece(selectedIndex, this.id);
 						selectedPiece.remove();
@@ -135,15 +141,16 @@ for (let i = 0; i < cells.length; i++) {
 				moveMade();
 			}
 		}
-		console.log(lastMoveFrom, lastMoveTo);
 	});
 }
 
 // This function removes the "moves" class from all elements that have it and clears the moves array.
 function deleteMoves() {
-	const moveElements = document.querySelectorAll(".moves");
+	const moveElements = document.querySelectorAll(
+		".moves, .blackCellAttack, .whiteCellAttack"
+	);
 	moveElements.forEach((element) => {
-		element.classList.remove("moves");
+		element.classList.remove("moves", "blackCellAttack", "whiteCellAttack");
 	});
 	moves.length = 0;
 }
@@ -155,6 +162,20 @@ function moveMade() {
 		colorToMove = "Black";
 	} else {
 		colorToMove = "White";
+	}
+	document.getElementById("menuColorToMove").textContent = colorToMove;
+	checkCheck("White");
+	checkCheck("Black");
+	let colorChecked = document.getElementById("colorChecked");
+	const king = document.getElementsByClassName(`${colorToMove} King`)[0];
+	if (whiteChecked) {
+		colorChecked.textContent = "White in check!";
+		colorChecked.style.display = "block";
+	} else if (blackChecked) {
+		colorChecked.textContent = "Black in check!";
+		colorChecked.style.display = "block";
+	} else {
+		colorChecked.style.display = "none";
 	}
 }
 
@@ -199,7 +220,12 @@ function isSquareOnBoard(square) {
 // This function adds the "moves" class to all elements corresponding to the moves in the moves array.
 function paintMoves() {
 	for (let n = 0; n < moves.length; n++) {
-		document.getElementById("c" + moves[n]).classList.toggle("moves");
+		const cell = document.getElementById("c" + moves[n]);
+		if (cell.classList.contains("blackCell")) {
+			cell.classList.toggle("blackCellAttack");
+		} else {
+			cell.classList.toggle("whiteCellAttack");
+		}
 	}
 }
 
@@ -366,7 +392,7 @@ function GeneratePawnMoves(startSquare, piece, color) {
 				}
 			}
 			return null; // target square is occupied
-		} else if (enPassantDelta) {
+		} else if (enPassantDelta && delta === enPassantDelta) {
 			enPassantMove = targetSquare;
 			return targetSquare;
 		}
@@ -428,7 +454,10 @@ function GeneratePawnMoves(startSquare, piece, color) {
 		(startRank === 6 && pawnColor === "White") ||
 		(startRank === 1 && pawnColor === "Black")
 	) {
-		if (!getTargetSquare(forwardDelta * 2)) {
+		if (
+			!getTargetSquare(forwardDelta * 2) ||
+			!getTargetSquare(forwardDelta)
+		) {
 			// pawn is blocked and can't move
 		} else {
 			moves.push(startSquare + 2 * forwardDelta);
@@ -506,7 +535,6 @@ function GenerateAttacks(color) {
 function checkCheck(color) {
 	const king = document.getElementsByClassName(`${color} King`)[0];
 	const kingSquare = parseInt(king.id.substring(1));
-	console.log(king, kingSquare);
 	if (color === "White") {
 		GenerateAttacks("Black");
 		if (blackAttacks.includes(kingSquare)) {
