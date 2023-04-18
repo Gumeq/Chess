@@ -522,6 +522,18 @@ function GenerateAttacks(color) {
 		const piece = document.getElementById(`p${i}`);
 		if (cell.hasChildNodes() && piece.classList.contains(color)) {
 			GenerateMoves(i, color);
+			const opponentColor = color === "White" ? "Black" : "White";
+			const king = document.getElementsByClassName(
+				`${opponentColor} King`
+			)[0];
+			const kingSquare = parseInt(king.id.substring(1));
+			if (moves.includes(kingSquare)) {
+				if (color === "White") {
+					checkingPieceBlack.push(piece.id);
+				} else {
+					checkingPieceWhite.push(piece.id);
+				}
+			}
 		}
 	}
 	if (color === "White") {
@@ -530,6 +542,16 @@ function GenerateAttacks(color) {
 		blackAttacks = [...moves];
 	}
 	moves.length = 0;
+}
+function GeneratePinnedPieces(color) {
+	const opponentColor = color === "White" ? "Black" : "White";
+	if (checkingPieceWhite.length) {
+		checkingPieceWhite.forEach((element, index) => {
+			GenerateMoves(element);
+			if (moves.includes()) {
+			}
+		});
+	}
 }
 
 function checkCheck(color) {
@@ -541,6 +563,7 @@ function checkCheck(color) {
 			whiteChecked = true;
 		} else {
 			whiteChecked = false;
+			checkingPieceWhite.length = 0;
 		}
 	} else {
 		GenerateAttacks("White");
@@ -548,15 +571,15 @@ function checkCheck(color) {
 			blackChecked = true;
 		} else {
 			blackChecked = false;
+			checkingPieceBlack.length = 0;
 		}
 	}
 }
 
 function GenerateLegalMoves(color) {
-	if (color === "White") {
-		checkCheck(color);
+	if (color === "Black") {
 		if (whiteChecked) {
-			// make new legal moves
+			GenerateAttacks();
 		} else {
 			// legal moves will be the pseudo legal moves
 		}

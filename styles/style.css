@@ -8,14 +8,38 @@ body {
 	justify-content: center;
 	flex-direction: row;
 	color: white;
-	margin-top: 10vh;
+	margin-top: 5vh;
 	overflow: hidden;
 }
+
+#ChessTable {
+	width: 95vw;
+	height: 95vw;
+}
+#menu {
+	display: none;
+}
+@media only screen and (min-width: 950px) {
+	#ChessTable {
+		width: 90vh;
+		height: 90vh;
+	}
+	#menu {
+		display: flex;
+		flex-direction: column;
+		margin-right: 5vw;
+		gap: 1vh;
+		/* align-self: flex-start; */
+	}
+}
+
 .cell {
-	height: 100px;
-	width: 100px;
+	height: 12.5%;
 	padding: 0;
 	cursor: pointer;
+}
+.cell:hover {
+	box-shadow: inset 0px 0px 0px 3px white;
 }
 
 .blackCell {
@@ -37,14 +61,14 @@ table {
 	border-collapse: collapse;
 	text-align: center;
 }
-
+td {
+	height: 12.5%;
+}
 .Black {
-	width: 90px;
-	height: 90px;
+	height: 95%;
 }
 .White {
-	width: 90px;
-	height: 90px;
+	height: 95%;
 }
 
 .selected {
@@ -53,13 +77,6 @@ table {
 
 .moves {
 	background-color: darkred;
-}
-#menu {
-	display: flex;
-	flex-direction: column;
-	margin-right: 5vw;
-	gap: 1vh;
-	/* align-self: flex-start; */
 }
 h1 {
 	padding: 0;
