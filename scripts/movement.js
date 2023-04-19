@@ -14,7 +14,7 @@ var lastMoveFrom, lastMoveTo, lastMovePiece;
 const board = document.getElementById("board");
 const cells = document.querySelectorAll(".cell");
 
-let selectedId = "none";
+var selectedId = "none";
 let selectedIndex = 0;
 let selected = document.getElementById(selectedId);
 
@@ -46,102 +46,125 @@ var blackChecked = false;
 
 for (let i = 0; i < cells.length; i++) {
 	cells[i].addEventListener("click", function () {
-		// check if the clicked cell has any child nodes (i.e., pieces)
-		if (this.hasChildNodes()) {
-			// get the clicked piece and its color
-			const clickedPiece = this.children[0];
-			const clickedPieceColor = clickedPiece.classList[0];
-
-			// check if there is a selected piece
-			if (selectedId !== "none") {
-				// get the selected piece and its color
-				const selectedPiece = document.getElementById(selectedId);
-				const selectedPieceColor = selectedPiece.classList[0];
-
-				// check if the clicked piece is a different color from the selected piece
-				if (clickedPieceColor !== selectedPieceColor) {
-					// check if the clicked cell is included in the valid moves for the selected piece
-					const clickedCellId = parseInt(this.id.substring(1));
-					if (moves.includes(clickedCellId)) {
-						// move the selected piece to the clicked cell, removing any piece that was already there
-						lastMoveFrom = parseInt(selectedId.substring(1));
-						lastMoveTo = parseInt(this.id.substring(1));
-						lastMovePiece = selectedPiece.classList[1];
-						selectedPiece.parentElement.classList.remove(
-							"selected"
-						);
-						this.removeChild(clickedPiece);
-						placePiece(selectedIndex, this.id);
-						selectedPiece.remove();
-						// clean up and update the UI
-						this.parentElement.classList.remove("selected");
-						deleteMoves();
-						selectedId = "none";
-						moveMade();
-					}
-				} else if (selectedId === clickedPiece.id) {
-					// toggle the selected state of the clicked cell if it is the same as the selected piece
-					this.classList.toggle("selected");
-					selectedId = "none";
-					deleteMoves();
-				} else {
-					// set the clicked cell as the new selected piece if it is a different piece of the same color
-					deleteMoves();
-					document
-						.getElementById(selectedId)
-						.parentElement.classList.remove("selected");
-					this.classList.toggle("selected");
-					selectedId = clickedPiece.id;
-					const selectedPieceType = Piece[clickedPiece.classList[1]];
-					selectedIndex =
-						parseInt(
-							clickedPieceColor === "Black"
-								? Piece.Black[0]
-								: Piece.White[0]
-						) + parseInt(selectedPieceType);
-					GenerateMoves(
-						parseInt(selectedId.substring(1)),
-						colorToMove
-					);
-					paintMoves();
-				}
-			} else if (clickedPieceColor === colorToMove) {
-				// set the clicked cell as the new selected piece if there is no current selection and it is the correct color
-				this.classList.toggle("selected");
-				selectedId = clickedPiece.id;
-				const selectedPieceType = Piece[clickedPiece.classList[1]];
-				selectedIndex =
-					parseInt(
-						clickedPieceColor === "Black"
-							? Piece.Black[0]
-							: Piece.White[0]
-					) + parseInt(selectedPieceType);
-				GenerateMoves(parseInt(selectedId.substring(1)), colorToMove);
-				paintMoves();
-			}
-		} else if (selectedId !== "none") {
-			// check if there is a selected piece and the clicked cell is a valid move for that piece
-			const clickedCellId = parseInt(this.id.substring(1));
-			if (moves.includes(clickedCellId)) {
-				// move the selected piece to the clicked cell, removing any piece that was already there
-				const selectedPiece = document.getElementById(selectedId);
-				if (enPassantMove === clickedCellId) {
-					document.getElementById(`p${lastMoveTo}`).remove();
-					enPassantMove = null;
-					enPassantDelta = null;
-				}
-				lastMoveFrom = parseInt(selectedId.substring(1));
-				lastMoveTo = parseInt(this.id.substring(1));
-				lastMovePiece = selectedPiece.classList[1];
-				selectedPiece.parentElement.classList.remove("selected");
-				deleteMoves();
-				selectedPiece.remove();
-				placePiece(selectedIndex, this.id);
-				selectedId = "none";
-				moveMade();
-			}
-		}
+		handleClick(this);
 	});
+}
+
+function handleClick(clickedCell) {
+	if (clickedCell.hasChildNodes()) {
+		handleCellWithChild(clickedCell);
+	} else if (selectedId !== "none") {
+		handleEmptyCell(clickedCell);
+	}
+}
+
+function handleCellWithChild(clickedCell) {
+	const clickedPiece = clickedCell.children[0];
+	const clickedPieceColor = clickedPiece.classList[0];
+
+	if (selectedId !== "none") {
+		const selectedPiece = document.getElementById(selectedId);
+		const selectedPieceColor = selectedPiece.classList[0];
+
+		if (clickedPieceColor !== selectedPieceColor) {
+			handleCapture(clickedCell, clickedPiece, selectedPiece);
+		} else if (selectedId === clickedPiece.id) {
+			toggleSelected(clickedCell);
+		} else {
+			handleSameColorPiece(clickedCell, clickedPiece);
+		}
+	} else if (clickedPieceColor === colorToMove) {
+		handleNewSelection(clickedCell, clickedPiece);
+	}
+}
+
+function handleEmptyCell(clickedCell) {
+	const clickedCellId = parseInt(clickedCell.id.substring(1));
+	if (moves.includes(clickedCellId)) {
+		moveSelectedPiece(clickedCell);
+	}
+}
+
+function handleCapture(clickedCell, clickedPiece, selectedPiece) {
+	const clickedCellId = parseInt(clickedCell.id.substring(1));
+	if (moves.includes(clickedCellId)) {
+		lastMoveFrom = parseInt(selectedId.substring(1));
+		lastMoveTo = parseInt(clickedCell.id.substring(1));
+		lastMovePiece = selectedPiece.classList[1];
+		cleanupAndUpdate();
+		clickedCell.removeChild(clickedPiece);
+		placePiece(selectedIndex, clickedCell.id);
+		selectedPiece.remove();
+		moveMade();
+	}
+}
+
+function toggleSelected(clickedCell) {
+	clickedCell.classList.toggle("selected");
+	selectedId = "none";
+	deleteMoves();
+}
+
+function handleSameColorPiece(clickedCell, clickedPiece) {
+	deleteMoves();
+	document
+		.getElementById(selectedId)
+		.parentElement.classList.remove("selected");
+	toggleSelected(clickedCell);
+	selectedId = clickedPiece.id;
+	updateSelectedIndex(clickedPiece);
+	GenerateMoves(parseInt(selectedId.substring(1)), colorToMove);
+	paintMoves();
+}
+
+function handleNewSelection(clickedCell, clickedPiece) {
+	toggleSelected(clickedCell);
+	selectedId = clickedPiece.id;
+	updateSelectedIndex(clickedPiece);
+	GenerateMoves(parseInt(selectedId.substring(1)), colorToMove);
+	paintMoves();
+}
+
+function moveSelectedPiece(clickedCell) {
+	const selectedPiece = document.getElementById(selectedId);
+	if (enPassantMove === parseInt(clickedCell.id.substring(1))) {
+		document.getElementById(`p${lastMoveTo}`).remove();
+		enPassantMove = null;
+		enPassantDelta = null;
+	}
+	lastMoveFrom = parseInt(selectedId.substring(1));
+	lastMoveTo = parseInt(clickedCell.id.substring(1));
+	lastMovePiece = selectedPiece.classList[1];
+	selectedPiece.parentElement.classList.remove("selected");
+	deleteMoves();
+	selectedPiece.remove();
+	placePiece(selectedIndex, clickedCell.id);
+	selectedId = "none";
+	moveMade();
+}
+
+function updateSelectedIndex(clickedPiece) {
+	const selectedPieceType = Piece[clickedPiece.classList[1]];
+	selectedIndex =
+		parseInt(
+			clickedPiece.classList[0] === "Black"
+				? Piece.Black[0]
+				: Piece.White[0]
+		) + parseInt(selectedPieceType);
+}
+
+function cleanupAndUpdate() {
+	document
+		.getElementById(selectedId)
+		.parentElement.classList.remove("selected");
+	deleteMoves();
+	selectedId = "none";
+	moveMade();
+}
+
+function isSquareOccupied(targetSquare) {
+	const targetCell = document.getElementById("c" + targetSquare);
+	return targetCell.hasChildNodes();
 }
 
 // This function removes the "moves" class from all elements that have it and clears the moves array.
@@ -158,11 +181,7 @@ function deleteMoves() {
 // This function increments the number of moves made and changes the color to move to the opposite color.
 function moveMade() {
 	Board.movesMade += 1;
-	if (colorToMove == "White") {
-		colorToMove = "Black";
-	} else {
-		colorToMove = "White";
-	}
+	colorToMove = colorToMove === "White" ? "Black" : "White";
 	document.getElementById("menuColorToMove").textContent = colorToMove;
 	checkCheck("White");
 	checkCheck("Black");
@@ -289,7 +308,7 @@ function GenerateSlidingMoves(startSquare, piece, color) {
 				startSquare + DirectionOffset[directionIndex] * (n + 1);
 			// If the target square is blocked by a friendly piece, the sliding piece can't move any further in this direction
 			if (
-				document.getElementById("c" + targetSquare).hasChildNodes() &&
+				isSquareOccupied(targetSquare) &&
 				color ==
 					document.getElementById("p" + targetSquare).classList[0]
 			) {
@@ -299,7 +318,7 @@ function GenerateSlidingMoves(startSquare, piece, color) {
 			moves.push(targetSquare);
 			// If the target square is occupied by an opponent's piece, the sliding piece can't move any further in this direction after capturing it
 			if (
-				document.getElementById("c" + targetSquare).hasChildNodes() &&
+				isSquareOccupied(targetSquare) &&
 				color !=
 					document.getElementById("p" + targetSquare).classList[0]
 			) {
@@ -328,14 +347,11 @@ function GenerateKnightMoves(startSquare, piece, color) {
 			targetRank = targetSquare % 8;
 
 			// Check if the target square is occupied by an opponent's piece or is empty
-			const hasChildren = document
-				.getElementById("c" + targetSquare)
-				.hasChildNodes();
 			if (
-				(hasChildren &&
+				(isSquareOccupied(targetSquare) &&
 					document.getElementById("p" + targetSquare).classList[0] !=
 						color) ||
-				!hasChildren
+				!isSquareOccupied(targetSquare)
 			) {
 				// Check the distance of the start square to the board edges in the west and east directions
 				const edgeDistanceWest =
@@ -413,11 +429,11 @@ function GeneratePawnMoves(startSquare, piece, color) {
 
 	// Check for capturing moves
 	targetSquare = startSquare + 7 * captureDelta;
-	if (document.getElementById("c" + targetSquare).hasChildNodes()) {
+	if (isSquareOccupied(targetSquare)) {
 		addMove(7 * captureDelta);
 	}
 	targetSquare = startSquare + 9 * captureDelta;
-	if (document.getElementById("c" + targetSquare).hasChildNodes()) {
+	if (isSquareOccupied(targetSquare)) {
 		addMove(9 * captureDelta);
 	}
 	const enPassantRank = color === "White" ? 1 : 6;
@@ -482,14 +498,11 @@ function GenerateKingMoves(startSquare, piece, color) {
 			// get target rank for comparison with start rank
 			targetRank = targetSquare % 8;
 			// check if target square is occupied and by which color
-			const hasChildren = document
-				.getElementById("c" + targetSquare)
-				.hasChildNodes();
 			if (
-				(hasChildren &&
+				(isSquareOccupied(targetSquare) &&
 					document.getElementById("p" + targetSquare).classList[0] !=
 						color) || // enemy piece, can capture
-				!hasChildren // unoccupied, can move
+				!isSquareOccupied(targetSquare) // unoccupied, can move
 			) {
 				// check if king is near edge of board and restrict moves accordingly
 				const edgeDistanceWest =
@@ -543,16 +556,6 @@ function GenerateAttacks(color) {
 	}
 	moves.length = 0;
 }
-function GeneratePinnedPieces(color) {
-	const opponentColor = color === "White" ? "Black" : "White";
-	if (checkingPieceWhite.length) {
-		checkingPieceWhite.forEach((element, index) => {
-			GenerateMoves(element);
-			if (moves.includes()) {
-			}
-		});
-	}
-}
 
 function checkCheck(color) {
 	const king = document.getElementsByClassName(`${color} King`)[0];
@@ -573,16 +576,5 @@ function checkCheck(color) {
 			blackChecked = false;
 			checkingPieceBlack.length = 0;
 		}
-	}
-}
-
-function GenerateLegalMoves(color) {
-	if (color === "Black") {
-		if (whiteChecked) {
-			GenerateAttacks();
-		} else {
-			// legal moves will be the pseudo legal moves
-		}
-		GenerateMoves(color);
 	}
 }
