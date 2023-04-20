@@ -14,7 +14,7 @@ var lastMoveFrom, lastMoveTo, lastMovePiece;
 const board = document.getElementById("board");
 const cells = document.querySelectorAll(".cell");
 
-var selectedId = "none";
+var selectedId = null;
 let selectedIndex = 0;
 let selected = document.getElementById(selectedId);
 
@@ -53,7 +53,7 @@ for (let i = 0; i < cells.length; i++) {
 function handleClick(clickedCell) {
 	if (clickedCell.hasChildNodes()) {
 		handleCellWithChild(clickedCell);
-	} else if (selectedId !== "none") {
+	} else if (selectedId) {
 		handleEmptyCell(clickedCell);
 	}
 }
@@ -62,7 +62,7 @@ function handleCellWithChild(clickedCell) {
 	const clickedPiece = clickedCell.children[0];
 	const clickedPieceColor = clickedPiece.classList[0];
 
-	if (selectedId !== "none") {
+	if (selectedId) {
 		const selectedPiece = document.getElementById(selectedId);
 		const selectedPieceColor = selectedPiece.classList[0];
 
@@ -95,13 +95,12 @@ function handleCapture(clickedCell, clickedPiece, selectedPiece) {
 		clickedCell.removeChild(clickedPiece);
 		placePiece(selectedIndex, clickedCell.id);
 		selectedPiece.remove();
-		moveMade();
 	}
 }
 
 function toggleSelected(clickedCell) {
 	clickedCell.classList.toggle("selected");
-	selectedId = "none";
+	selectedId = null;
 	deleteMoves();
 }
 
@@ -139,7 +138,7 @@ function moveSelectedPiece(clickedCell) {
 	deleteMoves();
 	selectedPiece.remove();
 	placePiece(selectedIndex, clickedCell.id);
-	selectedId = "none";
+	selectedId = null;
 	moveMade();
 }
 
@@ -158,7 +157,7 @@ function cleanupAndUpdate() {
 		.getElementById(selectedId)
 		.parentElement.classList.remove("selected");
 	deleteMoves();
-	selectedId = "none";
+	selectedId = null;
 	moveMade();
 }
 
@@ -278,252 +277,206 @@ function GenerateMoves(cPosition, color) {
 	}
 }
 
-// This function generates moves for a sliding chess piece (bishop or rook) based on its current position
 function GenerateSlidingMoves(startSquare, piece, color) {
-	// Determine the start and end direction indices based on the type of the sliding piece
-	let startDirIndex = document
-		.getElementById("p" + startSquare)
-		.classList.contains("Bishop")
-		? 4
-		: 0;
-	let endDirIndex = document
-		.getElementById("p" + startSquare)
-		.classList.contains("Rook")
-		? 4
-		: 8;
-	// Iterate through all directions in which the piece can move (diagonal or horizontal/vertical)
+	let startDirIndex = getStartDirectionIndex(startSquare);
+	let endDirIndex = getEndDirectionIndex(startSquare);
+
 	for (
 		let directionIndex = startDirIndex;
 		directionIndex < endDirIndex;
 		directionIndex++
 	) {
-		// Iterate through all squares in the current direction until the edge of the board or a blocking piece is reached
-		for (
-			let n = 0;
-			n < Object.values(NumSquaresToEdge[startSquare])[directionIndex];
-			n++
-		) {
-			// Determine the target square in the current direction
-			let targetSquare =
-				startSquare + DirectionOffset[directionIndex] * (n + 1);
-			// If the target square is blocked by a friendly piece, the sliding piece can't move any further in this direction
-			if (
-				isSquareOccupied(targetSquare) &&
-				color ==
-					document.getElementById("p" + targetSquare).classList[0]
-			) {
-				break;
-			}
-			// Add the target square to the list of possible moves
-			moves.push(targetSquare);
-			// If the target square is occupied by an opponent's piece, the sliding piece can't move any further in this direction after capturing it
-			if (
-				isSquareOccupied(targetSquare) &&
-				color !=
-					document.getElementById("p" + targetSquare).classList[0]
-			) {
-				break;
-			}
+		generateMovesInDirection(startSquare, directionIndex, color);
+	}
+}
+
+function getStartDirectionIndex(startSquare) {
+	return document
+		.getElementById("p" + startSquare)
+		.classList.contains("Bishop")
+		? 4
+		: 0;
+}
+
+function getEndDirectionIndex(startSquare) {
+	return document.getElementById("p" + startSquare).classList.contains("Rook")
+		? 4
+		: 8;
+}
+
+function generateMovesInDirection(startSquare, directionIndex, color) {
+	for (
+		let n = 0;
+		n < Object.values(NumSquaresToEdge[startSquare])[directionIndex];
+		n++
+	) {
+		let targetSquare =
+			startSquare + DirectionOffset[directionIndex] * (n + 1);
+
+		if (isBlockedByFriendlyPiece(targetSquare, color)) {
+			break;
+		}
+
+		moves.push(targetSquare);
+
+		if (isBlockedByOpponentPiece(targetSquare, color)) {
+			break;
 		}
 	}
 }
 
-// This function generates all possible moves for a knight from a given start square on the board.
-function GenerateKnightMoves(startSquare, piece, color) {
-	// Initialize variables to be used within the function
-	let targetSquare;
-	let targetRank;
-	const startRank = startSquare % 8; // Calculates the rank of the start square
-	// Loop through all possible knight move directions
-	for (let n = 0; n < DirectionOffsetKnight.length; n++) {
-		// Calculate the target square for the current direction
-		targetSquare = startSquare + DirectionOffsetKnight[n];
-
-		// Check if the target square is on the board
-		const targetIsOnBoard = isSquareOnBoard(targetSquare);
-
-		if (targetIsOnBoard) {
-			// Calculate the rank of the target square
-			targetRank = targetSquare % 8;
-
-			// Check if the target square is occupied by an opponent's piece or is empty
-			if (
-				(isSquareOccupied(targetSquare) &&
-					document.getElementById("p" + targetSquare).classList[0] !=
-						color) ||
-				!isSquareOccupied(targetSquare)
-			) {
-				// Check the distance of the start square to the board edges in the west and east directions
-				const edgeDistanceWest =
-					Object.values(NumSquaresToEdge[startSquare])[2] < 2;
-				const edgeDistanceEast =
-					Object.values(NumSquaresToEdge[startSquare])[3] < 2;
-
-				// Add the target square to the moves array if it is within the allowable move range
-				if (edgeDistanceWest) {
-					if (targetRank <= startRank + 2) {
-						moves.push(targetSquare);
-					}
-				} else if (edgeDistanceEast) {
-					if (targetRank >= startRank - 2) {
-						moves.push(targetSquare);
-					}
-				}
-				if (!edgeDistanceWest && !edgeDistanceEast) {
-					moves.push(targetSquare);
-				}
-			}
-		}
-	}
+function isBlockedByFriendlyPiece(targetSquare, color) {
+	return (
+		isSquareOccupied(targetSquare) &&
+		color == document.getElementById("p" + targetSquare).classList[0]
+	);
 }
 
-// This function generates all possible moves for a pawn from a given start square on the board.
+function isBlockedByOpponentPiece(targetSquare, color) {
+	return (
+		isSquareOccupied(targetSquare) &&
+		color != document.getElementById("p" + targetSquare).classList[0]
+	);
+}
+
 function GeneratePawnMoves(startSquare, piece, color) {
-	// Get the starting rank and file of the pawn
-	const startRank = Math.floor((63 - startSquare) / 8);
-	const startFile = startSquare % 8;
+	generatePawnCapturingMoves(startSquare, piece, color);
+	generatePawnNonCapturingMoves(startSquare, piece, color);
+	generatePawnDoublePush(startSquare, piece, color);
+	generatePawnEnPassantMoves(startSquare, piece, color);
+}
 
-	// Get the color of the pawn
-	const pawnColor = document.getElementById("p" + startSquare).classList[0];
+function generatePawnCapturingMoves(startSquare, piece, color) {
+	const captureDelta = color === "White" ? 1 : -1;
 
-	// Declare variables
-	let targetSquare;
-
-	// Define a function to get the target square and check if it's on the board or occupied
-	const getTargetSquare = (delta) => {
+	const addMoveIfCapturable = (delta) => {
 		const targetSquare = startSquare + delta;
-		const targetRow = Math.floor((63 - targetSquare) / 8);
-		const targetIsOnBoard = isSquareOnBoard(targetSquare);
-		if (!targetIsOnBoard) {
-			return null; // target square is off the board
-		}
-		const targetCell = document.getElementById("c" + targetSquare);
-		if (targetCell.hasChildNodes()) {
-			if (
-				pawnColor !==
-				document.getElementById("p" + targetSquare).classList[0]
-			) {
-				if (delta !== 8 && delta != -8) {
-					return targetSquare;
-				}
-			}
-			return null; // target square is occupied
-		} else if (enPassantDelta && delta === enPassantDelta) {
-			enPassantMove = targetSquare;
-			return targetSquare;
-		}
-		return targetSquare;
-	};
-
-	// Define a function to add a move to the moves array
-	const addMove = (delta) => {
-		const targetSquare = getTargetSquare(delta);
-		if (targetSquare !== null) {
+		if (
+			isSquareOccupied(targetSquare) &&
+			document.getElementById("p" + targetSquare).classList[0] !== color
+		) {
 			moves.push(targetSquare);
 		}
 	};
 
-	// Determine the direction of the capture for the pawn
-	const captureDelta = pawnColor === "White" ? 1 : -1;
-	const captureSquare = getTargetSquare(captureDelta);
+	addMoveIfCapturable(7 * captureDelta);
+	addMoveIfCapturable(9 * captureDelta);
+}
 
-	// Check for capturing moves
-	targetSquare = startSquare + 7 * captureDelta;
-	if (isSquareOccupied(targetSquare)) {
-		addMove(7 * captureDelta);
+function generatePawnNonCapturingMoves(startSquare, piece, color) {
+	const forwardDelta = color === "White" ? 8 : -8;
+	const targetSquare = startSquare + forwardDelta;
+
+	if (!isSquareOccupied(targetSquare)) {
+		moves.push(targetSquare);
 	}
-	targetSquare = startSquare + 9 * captureDelta;
-	if (isSquareOccupied(targetSquare)) {
-		addMove(9 * captureDelta);
+}
+
+function generatePawnDoublePush(startSquare, piece, color) {
+	const startRank = Math.floor((63 - startSquare) / 8);
+	const forwardDelta = color === "White" ? 8 : -8;
+	const doublePushTargetSquare = startSquare + 2 * forwardDelta;
+
+	if (
+		(startRank === 6 && color === "White") ||
+		(startRank === 1 && color === "Black")
+	) {
+		if (
+			!isSquareOccupied(doublePushTargetSquare) &&
+			!isSquareOccupied(startSquare + forwardDelta)
+		) {
+			moves.push(doublePushTargetSquare);
+		}
 	}
+}
+
+function generatePawnEnPassantMoves(startSquare, piece, color) {
 	const enPassantRank = color === "White" ? 1 : 6;
+
 	if (
 		lastMovePiece === "Pawn" &&
 		enPassantRank === Math.floor((63 - lastMoveFrom) / 8)
 	) {
-		if (color === "White") {
-			if (lastMoveTo === startSquare + 1) {
-				enPassantDelta = 9 * captureDelta;
-			} else if (lastMoveTo === startSquare - 1) {
-				enPassantDelta = 7 * captureDelta;
+		const captureDelta = color === "White" ? 1 : -1;
+		const addEnPassantMove = (delta) => {
+			const targetSquare = startSquare + delta;
+			if (lastMoveTo === targetSquare) {
+				moves.push(startSquare + 8 * captureDelta + delta);
+				enPassantMove = startSquare + 8 * captureDelta + delta;
 			}
-		} else {
-			if (lastMoveTo === startSquare + 1) {
-				enPassantDelta = 7 * captureDelta;
-			} else if (lastMoveTo === startSquare - 1) {
-				enPassantDelta = 9 * captureDelta;
-			}
-		}
-		addMove(enPassantDelta);
-	}
+		};
 
-	// Check for non-capturing moves
-	const forwardDelta = pawnColor === "White" ? 8 : -8;
-	if (!getTargetSquare(forwardDelta)) {
-		// pawn is blocked and can't move
-	} else {
-		addMove(forwardDelta);
-	}
-
-	// Check for double pawn push from the starting rank
-	if (
-		(startRank === 6 && pawnColor === "White") ||
-		(startRank === 1 && pawnColor === "Black")
-	) {
-		if (
-			!getTargetSquare(forwardDelta * 2) ||
-			!getTargetSquare(forwardDelta)
-		) {
-			// pawn is blocked and can't move
-		} else {
-			moves.push(startSquare + 2 * forwardDelta);
-		}
+		addEnPassantMove(1);
+		addEnPassantMove(-1);
 	}
 }
 
-// This function generates all possible moves for a pawn from a given start square on the board.
-function GenerateKingMoves(startSquare, piece, color) {
-	// initialize variables
+function isValidMove(targetSquare, color) {
+	return (
+		(isSquareOccupied(targetSquare) &&
+			document.getElementById("p" + targetSquare).classList[0] !=
+				color) ||
+		!isSquareOccupied(targetSquare)
+	);
+}
+
+function GenerateKnightMoves(startSquare, piece, color) {
 	let targetSquare;
 	let targetRank;
 	const startRank = startSquare % 8;
 
-	// loop through all possible directions for king moves
-	for (let n = 0; n < DirectionOffset.length; n++) {
-		// get target square based on direction offset
-		targetSquare = startSquare + DirectionOffset[n];
-		// check if target square is on board
+	for (let n = 0; n < DirectionOffsetKnight.length; n++) {
+		targetSquare = startSquare + DirectionOffsetKnight[n];
 		const targetIsOnBoard = isSquareOnBoard(targetSquare);
-		if (targetIsOnBoard) {
-			// get target rank for comparison with start rank
+
+		if (targetIsOnBoard && isValidMove(targetSquare, color)) {
 			targetRank = targetSquare % 8;
-			// check if target square is occupied and by which color
-			if (
-				(isSquareOccupied(targetSquare) &&
-					document.getElementById("p" + targetSquare).classList[0] !=
-						color) || // enemy piece, can capture
-				!isSquareOccupied(targetSquare) // unoccupied, can move
-			) {
-				// check if king is near edge of board and restrict moves accordingly
-				const edgeDistanceWest =
-					Object.values(NumSquaresToEdge[startSquare])[2] < 2;
-				const edgeDistanceEast =
-					Object.values(NumSquaresToEdge[startSquare])[3] < 2;
-				if (edgeDistanceWest) {
-					if (targetRank <= startRank + 2) {
-						// limit westward moves
-						moves.push(targetSquare);
-					}
-				} else if (edgeDistanceEast) {
-					if (targetRank >= startRank - 2) {
-						// limit eastward moves
-						moves.push(targetSquare);
-					}
-				}
-				if (!edgeDistanceWest && !edgeDistanceEast) {
-					// no edge restrictions
+			const edgeDistanceWest =
+				Object.values(NumSquaresToEdge[startSquare])[2] < 2;
+			const edgeDistanceEast =
+				Object.values(NumSquaresToEdge[startSquare])[3] < 2;
+
+			if (edgeDistanceWest) {
+				if (targetRank <= startRank + 2) {
 					moves.push(targetSquare);
 				}
+			} else if (edgeDistanceEast) {
+				if (targetRank >= startRank - 2) {
+					moves.push(targetSquare);
+				}
+			} else {
+				moves.push(targetSquare);
+			}
+		}
+	}
+}
+
+function GenerateKingMoves(startSquare, piece, color) {
+	let targetSquare;
+	let targetRank;
+	const startRank = startSquare % 8;
+
+	for (let n = 0; n < DirectionOffset.length; n++) {
+		targetSquare = startSquare + DirectionOffset[n];
+		const targetIsOnBoard = isSquareOnBoard(targetSquare);
+
+		if (targetIsOnBoard && isValidMove(targetSquare, color)) {
+			targetRank = targetSquare % 8;
+			const edgeDistanceWest =
+				Object.values(NumSquaresToEdge[startSquare])[2] < 2;
+			const edgeDistanceEast =
+				Object.values(NumSquaresToEdge[startSquare])[3] < 2;
+
+			if (edgeDistanceWest) {
+				if (targetRank <= startRank + 2) {
+					moves.push(targetSquare);
+				}
+			} else if (edgeDistanceEast) {
+				if (targetRank >= startRank - 2) {
+					moves.push(targetSquare);
+				}
+			} else {
+				moves.push(targetSquare);
 			}
 		}
 	}
