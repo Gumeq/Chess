@@ -9,8 +9,6 @@
 // -make it responsive and mobile friendly
 // -add ranks and files to cell edges
 
-var lastMoveFrom, lastMoveTo, lastMovePiece;
-
 const board = document.getElementById("board");
 const cells = document.querySelectorAll(".cell");
 
@@ -30,11 +28,6 @@ var enPassantMove = null;
 var moves = new Array();
 var legalMoves = new Array();
 
-const Move = {
-	StartSquare: 0,
-	TargetSquare: 0,
-};
-
 var whiteAttacks = new Array();
 var blackAttacks = new Array();
 var checkingPieceWhite = new Array();
@@ -43,6 +36,17 @@ var whitePinned = new Array();
 var blackPinned = new Array();
 var whiteChecked = false;
 var blackChecked = false;
+
+const Move = {
+	StartSquare: 0,
+	TargetSquare: 0,
+};
+
+var lastMove = {
+	from: 0,
+	to: 0,
+	piece: 0,
+};
 
 for (let i = 0; i < cells.length; i++) {
 	cells[i].addEventListener("click", function () {
@@ -88,20 +92,11 @@ function handleEmptyCell(clickedCell) {
 function handleCapture(clickedCell, clickedPiece, selectedPiece) {
 	const clickedCellId = parseInt(clickedCell.id.substring(1));
 	if (moves.includes(clickedCellId)) {
-		lastMoveFrom = parseInt(selectedId.substring(1));
-		lastMoveTo = parseInt(clickedCell.id.substring(1));
-		lastMovePiece = selectedPiece.classList[1];
-		cleanupAndUpdate();
+		createLastMove(clickedCell, selectedPiece);
 		clickedCell.removeChild(clickedPiece);
 		placePiece(selectedIndex, clickedCell.id);
-		selectedPiece.remove();
+		cleanupAndUpdate();
 	}
-}
-
-function toggleSelected(clickedCell) {
-	clickedCell.classList.toggle("selected");
-	selectedId = null;
-	deleteMoves();
 }
 
 function handleSameColorPiece(clickedCell, clickedPiece) {
@@ -127,38 +122,34 @@ function handleNewSelection(clickedCell, clickedPiece) {
 function moveSelectedPiece(clickedCell) {
 	const selectedPiece = document.getElementById(selectedId);
 	if (enPassantMove === parseInt(clickedCell.id.substring(1))) {
-		document.getElementById(`p${lastMoveTo}`).remove();
+		document.getElementById(`p${lastMove.to}`).remove();
 		enPassantMove = null;
 		enPassantDelta = null;
 	}
-	lastMoveFrom = parseInt(selectedId.substring(1));
-	lastMoveTo = parseInt(clickedCell.id.substring(1));
-	lastMovePiece = selectedPiece.classList[1];
-	selectedPiece.parentElement.classList.remove("selected");
-	deleteMoves();
-	selectedPiece.remove();
+	createLastMove(clickedCell, selectedPiece);
 	placePiece(selectedIndex, clickedCell.id);
+	cleanupAndUpdate();
+}
+
+function toggleSelected(clickedCell) {
+	clickedCell.classList.toggle("selected");
 	selectedId = null;
-	moveMade();
+	deleteMoves();
+}
+
+function removeSelected() {
+	const selectedPiece = document.getElementById(selectedId);
+	selectedPiece.parentElement.classList.remove("selected");
+	selectedPiece.remove();
+	selectedId = null;
 }
 
 function updateSelectedIndex(clickedPiece) {
 	const selectedPieceType = Piece[clickedPiece.classList[1]];
 	selectedIndex =
 		parseInt(
-			clickedPiece.classList[0] === "Black"
-				? Piece.Black[0]
-				: Piece.White[0]
+			clickedPiece.classList[0] === "Black" ? Piece.Black : Piece.White
 		) + parseInt(selectedPieceType);
-}
-
-function cleanupAndUpdate() {
-	document
-		.getElementById(selectedId)
-		.parentElement.classList.remove("selected");
-	deleteMoves();
-	selectedId = null;
-	moveMade();
 }
 
 function isSquareOccupied(targetSquare) {
@@ -166,7 +157,18 @@ function isSquareOccupied(targetSquare) {
 	return targetCell.hasChildNodes();
 }
 
-// This function removes the "moves" class from all elements that have it and clears the moves array.
+function cleanupAndUpdate() {
+	removeSelected();
+	deleteMoves();
+	moveMade();
+}
+
+function createLastMove(clickedCell, selectedPiece) {
+	lastMove.from = parseInt(selectedId.substring(1));
+	lastMove.to = parseInt(clickedCell.id.substring(1));
+	lastMove.piece = selectedPiece.classList[1];
+}
+
 function deleteMoves() {
 	const moveElements = document.querySelectorAll(
 		".moves, .blackCellAttack, .whiteCellAttack"
@@ -176,25 +178,48 @@ function deleteMoves() {
 	});
 	moves.length = 0;
 }
+function deleteLastMoves() {
+	let lastMoveElements = document.querySelectorAll(
+		".lastMoveWhite, .lastMoveBlack"
+	);
+	lastMoveElements.forEach((element) => {
+		element.classList.remove("lastMoveWhite", "lastMoveBlack");
+	});
+}
 
-// This function increments the number of moves made and changes the color to move to the opposite color.
+function paintMoves() {
+	for (let n = 0; n < moves.length; n++) {
+		const cell = document.getElementById("c" + moves[n]);
+		if (cell.classList.contains("blackCell")) {
+			cell.classList.toggle("blackCellAttack");
+		} else {
+			cell.classList.toggle("whiteCellAttack");
+		}
+	}
+}
+
+function paintLastMoves() {
+	const moveFrom = document.getElementById(`c${lastMove.from}`);
+	const moveTo = document.getElementById(`c${lastMove.to}`);
+	if (moveFrom.classList.contains("blackCell")) {
+		moveFrom.classList.add("lastMoveBlack");
+	} else {
+		moveFrom.classList.add("lastMoveWhite");
+	}
+	if (moveTo.classList.contains("blackCell")) {
+		moveTo.classList.add("lastMoveBlack");
+	} else {
+		moveTo.classList.add("lastMoveWhite");
+	}
+}
+
 function moveMade() {
 	Board.movesMade += 1;
+	deleteLastMoves();
+	paintLastMoves();
 	colorToMove = colorToMove === "White" ? "Black" : "White";
-	document.getElementById("menuColorToMove").textContent = colorToMove;
 	checkCheck("White");
 	checkCheck("Black");
-	let colorChecked = document.getElementById("colorChecked");
-	const king = document.getElementsByClassName(`${colorToMove} King`)[0];
-	if (whiteChecked) {
-		colorChecked.textContent = "White in check!";
-		colorChecked.style.display = "block";
-	} else if (blackChecked) {
-		colorChecked.textContent = "Black in check!";
-		colorChecked.style.display = "block";
-	} else {
-		colorChecked.style.display = "none";
-	}
 }
 
 // This function precomputes data for the number of squares in each direction from a given square on the board.
@@ -233,18 +258,6 @@ function PrecomputedData() {
 // This function checks whether a given square index is on the board.
 function isSquareOnBoard(square) {
 	return square >= 0 && square <= 63;
-}
-
-// This function adds the "moves" class to all elements corresponding to the moves in the moves array.
-function paintMoves() {
-	for (let n = 0; n < moves.length; n++) {
-		const cell = document.getElementById("c" + moves[n]);
-		if (cell.classList.contains("blackCell")) {
-			cell.classList.toggle("blackCellAttack");
-		} else {
-			cell.classList.toggle("whiteCellAttack");
-		}
-	}
 }
 
 // This function generates moves for a given chess piece based on its type and current position
@@ -394,13 +407,13 @@ function generatePawnEnPassantMoves(startSquare, piece, color) {
 	const enPassantRank = color === "White" ? 1 : 6;
 
 	if (
-		lastMovePiece === "Pawn" &&
-		enPassantRank === Math.floor((63 - lastMoveFrom) / 8)
+		lastMove.piece === "Pawn" &&
+		enPassantRank === Math.floor((63 - lastMove.from) / 8)
 	) {
 		const captureDelta = color === "White" ? 1 : -1;
 		const addEnPassantMove = (delta) => {
 			const targetSquare = startSquare + delta;
-			if (lastMoveTo === targetSquare) {
+			if (lastMove.to === targetSquare) {
 				moves.push(startSquare + 8 * captureDelta + delta);
 				enPassantMove = startSquare + 8 * captureDelta + delta;
 			}
@@ -517,17 +530,29 @@ function checkCheck(color) {
 		GenerateAttacks("Black");
 		if (blackAttacks.includes(kingSquare)) {
 			whiteChecked = true;
+			king.classList.add("heartbeat");
 		} else {
 			whiteChecked = false;
 			checkingPieceWhite.length = 0;
+			king.classList.remove("heartbeat");
 		}
 	} else {
 		GenerateAttacks("White");
 		if (whiteAttacks.includes(kingSquare)) {
 			blackChecked = true;
+			king.classList.add("heartbeat");
 		} else {
 			blackChecked = false;
 			checkingPieceBlack.length = 0;
+			king.classList.remove("heartbeat");
 		}
+	}
+}
+
+function paintAttacks(color) {
+	const colorAttacks = color === "White" ? whiteAttacks : blackAttacks;
+	for (let n = 0; n < colorAttacks.length; n++) {
+		let cell = document.getElementById("c" + colorAttacks[n]);
+		cell.classList.add("moves");
 	}
 }

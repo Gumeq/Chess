@@ -2,41 +2,31 @@ body {
 	text-align: center;
 	background-color: #121212;
 	font-family: "Roboto Slab", serif;
-	height: 100vh;
-	margin: 0;
 	display: flex;
-	justify-content: center;
-	flex-direction: row;
+	flex-direction: column;
 	color: white;
-	margin-top: 5vh;
+	overflow: hidden;
+	flex-direction: row;
+	justify-content: center;
+}
+
+html,
+body {
+	margin: 0;
+	height: 100%;
 	overflow: hidden;
 }
 
 #ChessTable {
-	width: 95vw;
-	height: 95vw;
-}
-#menu {
-	display: none;
-}
-@media only screen and (min-width: 950px) {
-	#ChessTable {
-		width: 90vh;
-		height: 90vh;
-	}
-	#menu {
-		display: flex;
-		flex-direction: column;
-		margin-right: 5vw;
-		gap: 1vh;
-		/* align-self: flex-start; */
-	}
+	width: 90vh;
+	height: 90vh;
 }
 
 .cell {
 	height: 12.5%;
 	padding: 0;
 	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
 }
 .cell:hover {
 	box-shadow: inset 0px 0px 0px 3px white;
@@ -49,13 +39,25 @@ body {
 .whiteCell {
 	background-color: rgb(240, 217, 181);
 }
+
+.lastMoveWhite {
+	background-color: #f3ae6f;
+}
+.lastMoveBlack {
+	background-color: #e9a05e;
+}
+
 .blackCellAttack {
 	background-color: #ca4747;
 }
 .whiteCellAttack {
 	background-color: #ff6363;
 }
-
+td img {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+}
 table {
 	table-layout: fixed;
 	border-collapse: collapse;
@@ -65,10 +67,10 @@ td {
 	height: 12.5%;
 }
 .Black {
-	height: 95%;
+	height: 90%;
 }
 .White {
-	height: 95%;
+	height: 90%;
 }
 
 .selected {
@@ -78,38 +80,12 @@ td {
 .moves {
 	background-color: darkred;
 }
-h1 {
-	padding: 0;
-	margin: 0;
-	font-size: 92px;
-	font-weight: 700;
-}
-h2 {
-	position: relative;
-	padding: 0;
-	margin: 0;
-	top: -30px;
-	font-size: 20px;
-	font-weight: 100;
-}
-h3 {
-	padding: 0;
-	margin: 0;
-	font-size: 30px;
-	font-weight: 400;
-}
 
 center {
 	position: relative;
-}
-#vanillaJS {
-	position: relative;
-	top: 50px;
-	left: 80px;
-}
-.heartbeat {
-	-webkit-animation: heartbeat 1.5s ease-in-out infinite both;
-	animation: heartbeat 1.5s ease-in-out infinite both;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 
 img {
@@ -139,5 +115,19 @@ img {
 		-webkit-transform: scale(1);
 		transform: scale(1);
 		opacity: 1;
+	}
+}
+
+@media only screen and (max-width: 992px) {
+	html,
+	body {
+		margin: 0;
+	}
+	#ChessTable {
+		width: 98vw;
+		height: 98vw;
+	}
+	.cell:hover {
+		box-shadow: inset 0px 0px 0px 2px white;
 	}
 }
