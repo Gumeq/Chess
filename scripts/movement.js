@@ -18,24 +18,27 @@ let selected = document.getElementById(selectedId);
 
 let childId;
 
-const DirectionOffset = [8, -8, -1, 1, 7, -7, 9, -9];
-const DirectionOffsetKnight = [17, 10, -6, 15, -10, -17, 6, -15];
-var NumSquaresToEdge = [[], []];
+const directionOffset = [8, -8, -1, 1, 7, -7, 9, -9];
+const directionOffsetKnight = [17, 10, -6, 15, -10, -17, 6, -15];
+var numSquaresToEdge = [[], []];
 
 var enPassantDelta = null;
 var enPassantMove = null;
 
 var moves = new Array();
 var legalMoves = new Array();
+var whenCheckedMoves = new Array();
 
 var whiteAttacks = new Array();
 var blackAttacks = new Array();
-var checkingPieceWhite = new Array();
-var checkingPieceBlack = new Array();
-var whitePinned = new Array();
-var blackPinned = new Array();
+var whiteCheckingPiece = new Array();
+var blackCheckingPiece = new Array();
+var whitePinningLines = new Array();
+var blackPinningLines = new Array();
 var whiteChecked = false;
 var blackChecked = false;
+
+var whenCheckedMoves;
 
 const Move = {
 	StartSquare: 0,
@@ -107,7 +110,7 @@ function handleSameColorPiece(clickedCell, clickedPiece) {
 	toggleSelected(clickedCell);
 	selectedId = clickedPiece.id;
 	updateSelectedIndex(clickedPiece);
-	GenerateMoves(parseInt(selectedId.substring(1)), colorToMove);
+	generateMoves(parseInt(selectedId.substring(1)), colorToMove, moves);
 	paintMoves();
 }
 
@@ -115,7 +118,7 @@ function handleNewSelection(clickedCell, clickedPiece) {
 	toggleSelected(clickedCell);
 	selectedId = clickedPiece.id;
 	updateSelectedIndex(clickedPiece);
-	GenerateMoves(parseInt(selectedId.substring(1)), colorToMove);
+	generateMoves(parseInt(selectedId.substring(1)), colorToMove, moves);
 	paintMoves();
 }
 
@@ -176,7 +179,7 @@ function deleteMoves() {
 	moveElements.forEach((element) => {
 		element.classList.remove("moves", "blackCellAttack", "whiteCellAttack");
 	});
-	moves.length = 0;
+	clearArray(moves);
 }
 function deleteLastMoves() {
 	let lastMoveElements = document.querySelectorAll(
@@ -188,12 +191,16 @@ function deleteLastMoves() {
 }
 
 function paintMoves() {
-	for (let n = 0; n < moves.length; n++) {
-		const cell = document.getElementById("c" + moves[n]);
-		if (cell.classList.contains("blackCell")) {
-			cell.classList.toggle("blackCellAttack");
-		} else {
-			cell.classList.toggle("whiteCellAttack");
+	if (moves.length < 1) {
+		return;
+	} else {
+		for (let n = 0; n < moves.length; n++) {
+			const cell = document.getElementById("c" + moves[n]);
+			if (cell.classList.contains("blackCell")) {
+				cell.classList.toggle("blackCellAttack");
+			} else {
+				cell.classList.toggle("whiteCellAttack");
+			}
 		}
 	}
 }
@@ -218,12 +225,14 @@ function moveMade() {
 	deleteLastMoves();
 	paintLastMoves();
 	colorToMove = colorToMove === "White" ? "Black" : "White";
-	checkCheck("White");
-	checkCheck("Black");
+	clearArray(whiteAttacks);
+	clearArray(blackAttacks);
+	generateAttacks("White");
+	generateAttacks("Black");
 }
 
 // This function precomputes data for the number of squares in each direction from a given square on the board.
-function PrecomputedData() {
+function precomputedData() {
 	for (let rank = 0; rank < 8; rank++) {
 		for (let file = 0; file < 8; file++) {
 			// Compute the number of squares in each direction.
@@ -238,10 +247,10 @@ function PrecomputedData() {
 			const NEMin = Math.min(numNorth, numEast);
 			const SWMin = Math.min(numSouth, numWest);
 
-			// Compute the index of the square in the NumSquaresToEdge array.
+			// Compute the index of the square in the numSquaresToEdge array.
 			const squareIndex = rank * 8 + file;
-			// Store the computed data for this square in the NumSquaresToEdge array.
-			NumSquaresToEdge[squareIndex] = {
+			// Store the computed data for this square in the numSquaresToEdge array.
+			numSquaresToEdge[squareIndex] = {
 				numNorth,
 				numSouth,
 				numWest,
@@ -261,36 +270,36 @@ function isSquareOnBoard(square) {
 }
 
 // This function generates moves for a given chess piece based on its type and current position
-function GenerateMoves(cPosition, color) {
+function generateMoves(startSquare, color, array) {
 	// Determine the rank and file of the current position on the board
-	const rank = Math.floor((63 - cPosition) / 8);
-	const file = cPosition % 8;
+	const rank = Math.floor((63 - startSquare) / 8);
+	const file = startSquare % 8;
 	// Get the piece element corresponding to the current position
-	const piece = document.getElementById("c" + cPosition);
+	const cell = document.getElementById(`c${startSquare}`);
 	// Check if the piece is present on the board and belongs to the player who is currently making the move
-	if (piece.hasChildNodes()) {
-		if (piece.children[0].classList.contains(color)) {
+	if (cell.hasChildNodes()) {
+		if (cell.children[0].classList.contains(color)) {
 			// Get the type of the piece (king, pawn, knight, bishop or rook) at the current position
 			const pieceType = Board.ChessBoard[rank][file] % 8;
 			// Call a specific function to generate moves based on the type of the piece
 			switch (pieceType) {
 				case 1:
-					GenerateKingMoves(cPosition, piece, color);
+					generateKingMoves(startSquare, color, array);
 					break;
 				case 2:
-					GeneratePawnMoves(cPosition, piece, color);
+					generatePawnMoves(startSquare, color, array);
 					break;
 				case 3:
-					GenerateKnightMoves(cPosition, piece, color);
+					generateKnightMoves(startSquare, color, array);
 					break;
 				default:
-					GenerateSlidingMoves(cPosition, piece, color);
+					generateSlidingMoves(startSquare, color, array);
 			}
 		}
 	}
 }
 
-function GenerateSlidingMoves(startSquare, piece, color) {
+function generateSlidingMoves(startSquare, color, array) {
 	let startDirIndex = getStartDirectionIndex(startSquare);
 	let endDirIndex = getEndDirectionIndex(startSquare);
 
@@ -299,7 +308,7 @@ function GenerateSlidingMoves(startSquare, piece, color) {
 		directionIndex < endDirIndex;
 		directionIndex++
 	) {
-		generateMovesInDirection(startSquare, directionIndex, color);
+		generateMovesInDirection(startSquare, directionIndex, color, array);
 	}
 }
 
@@ -317,20 +326,20 @@ function getEndDirectionIndex(startSquare) {
 		: 8;
 }
 
-function generateMovesInDirection(startSquare, directionIndex, color) {
+function generateMovesInDirection(startSquare, directionIndex, color, array) {
 	for (
 		let n = 0;
-		n < Object.values(NumSquaresToEdge[startSquare])[directionIndex];
+		n < Object.values(numSquaresToEdge[startSquare])[directionIndex];
 		n++
 	) {
 		let targetSquare =
-			startSquare + DirectionOffset[directionIndex] * (n + 1);
+			startSquare + directionOffset[directionIndex] * (n + 1);
 
 		if (isBlockedByFriendlyPiece(targetSquare, color)) {
 			break;
 		}
 
-		moves.push(targetSquare);
+		array.push(targetSquare);
 
 		if (isBlockedByOpponentPiece(targetSquare, color)) {
 			break;
@@ -352,14 +361,14 @@ function isBlockedByOpponentPiece(targetSquare, color) {
 	);
 }
 
-function GeneratePawnMoves(startSquare, piece, color) {
-	generatePawnCapturingMoves(startSquare, piece, color);
-	generatePawnNonCapturingMoves(startSquare, piece, color);
-	generatePawnDoublePush(startSquare, piece, color);
-	generatePawnEnPassantMoves(startSquare, piece, color);
+function generatePawnMoves(startSquare, color, array) {
+	generatePawnCapturingMoves(startSquare, color, array);
+	generatePawnNonCapturingMoves(startSquare, color, array);
+	generatePawnDoublePush(startSquare, color, array);
+	generatePawnEnPassantMoves(startSquare, color, array);
 }
 
-function generatePawnCapturingMoves(startSquare, piece, color) {
+function generatePawnCapturingMoves(startSquare, color, array) {
 	const captureDelta = color === "White" ? 1 : -1;
 
 	const addMoveIfCapturable = (delta) => {
@@ -368,7 +377,7 @@ function generatePawnCapturingMoves(startSquare, piece, color) {
 			isSquareOccupied(targetSquare) &&
 			document.getElementById("p" + targetSquare).classList[0] !== color
 		) {
-			moves.push(targetSquare);
+			array.push(targetSquare);
 		}
 	};
 
@@ -376,16 +385,16 @@ function generatePawnCapturingMoves(startSquare, piece, color) {
 	addMoveIfCapturable(9 * captureDelta);
 }
 
-function generatePawnNonCapturingMoves(startSquare, piece, color) {
+function generatePawnNonCapturingMoves(startSquare, color, array) {
 	const forwardDelta = color === "White" ? 8 : -8;
 	const targetSquare = startSquare + forwardDelta;
 
 	if (!isSquareOccupied(targetSquare)) {
-		moves.push(targetSquare);
+		array.push(targetSquare);
 	}
 }
 
-function generatePawnDoublePush(startSquare, piece, color) {
+function generatePawnDoublePush(startSquare, color, array) {
 	const startRank = Math.floor((63 - startSquare) / 8);
 	const forwardDelta = color === "White" ? 8 : -8;
 	const doublePushTargetSquare = startSquare + 2 * forwardDelta;
@@ -398,12 +407,12 @@ function generatePawnDoublePush(startSquare, piece, color) {
 			!isSquareOccupied(doublePushTargetSquare) &&
 			!isSquareOccupied(startSquare + forwardDelta)
 		) {
-			moves.push(doublePushTargetSquare);
+			array.push(doublePushTargetSquare);
 		}
 	}
 }
 
-function generatePawnEnPassantMoves(startSquare, piece, color) {
+function generatePawnEnPassantMoves(startSquare, color, array) {
 	const enPassantRank = color === "White" ? 1 : 6;
 
 	if (
@@ -414,7 +423,7 @@ function generatePawnEnPassantMoves(startSquare, piece, color) {
 		const addEnPassantMove = (delta) => {
 			const targetSquare = startSquare + delta;
 			if (lastMove.to === targetSquare) {
-				moves.push(startSquare + 8 * captureDelta + delta);
+				array.push(startSquare + 8 * captureDelta + delta);
 				enPassantMove = startSquare + 8 * captureDelta + delta;
 			}
 		};
@@ -433,120 +442,297 @@ function isValidMove(targetSquare, color) {
 	);
 }
 
-function GenerateKnightMoves(startSquare, piece, color) {
+function generateKnightMoves(startSquare, color, array) {
 	let targetSquare;
 	let targetRank;
 	const startRank = startSquare % 8;
 
-	for (let n = 0; n < DirectionOffsetKnight.length; n++) {
-		targetSquare = startSquare + DirectionOffsetKnight[n];
+	for (let n = 0; n < directionOffsetKnight.length; n++) {
+		targetSquare = startSquare + directionOffsetKnight[n];
 		const targetIsOnBoard = isSquareOnBoard(targetSquare);
 
 		if (targetIsOnBoard && isValidMove(targetSquare, color)) {
 			targetRank = targetSquare % 8;
 			const edgeDistanceWest =
-				Object.values(NumSquaresToEdge[startSquare])[2] < 2;
+				Object.values(numSquaresToEdge[startSquare])[2] < 2;
 			const edgeDistanceEast =
-				Object.values(NumSquaresToEdge[startSquare])[3] < 2;
+				Object.values(numSquaresToEdge[startSquare])[3] < 2;
 
 			if (edgeDistanceWest) {
 				if (targetRank <= startRank + 2) {
-					moves.push(targetSquare);
+					array.push(targetSquare);
 				}
 			} else if (edgeDistanceEast) {
 				if (targetRank >= startRank - 2) {
-					moves.push(targetSquare);
+					array.push(targetSquare);
 				}
 			} else {
-				moves.push(targetSquare);
+				array.push(targetSquare);
 			}
 		}
 	}
 }
 
-function GenerateKingMoves(startSquare, piece, color) {
+function generateKingMoves(startSquare, color, array) {
 	let targetSquare;
 	let targetRank;
 	const startRank = startSquare % 8;
-
-	for (let n = 0; n < DirectionOffset.length; n++) {
-		targetSquare = startSquare + DirectionOffset[n];
+	const opponentColor = color === "White" ? "Black" : "White";
+	const opponentColorAttacks =
+		color === "White" ? blackAttacks : whiteAttacks;
+	const opponentColorCheckingPiece =
+		color === "White" ? blackCheckingPiece : whiteCheckingPiece;
+	let tempyArray = [];
+	generateCheckingLines(opponentColor, tempyArray);
+	for (let n = 0; n < directionOffset.length; n++) {
+		targetSquare = startSquare + directionOffset[n];
 		const targetIsOnBoard = isSquareOnBoard(targetSquare);
 
-		if (targetIsOnBoard && isValidMove(targetSquare, color)) {
+		if (
+			targetIsOnBoard &&
+			isValidMove(targetSquare, color) &&
+			!opponentColorAttacks.includes(targetSquare) &&
+			!tempyArray.includes(targetSquare)
+		) {
 			targetRank = targetSquare % 8;
 			const edgeDistanceWest =
-				Object.values(NumSquaresToEdge[startSquare])[2] < 2;
+				Object.values(numSquaresToEdge[startSquare])[2] < 2;
 			const edgeDistanceEast =
-				Object.values(NumSquaresToEdge[startSquare])[3] < 2;
+				Object.values(numSquaresToEdge[startSquare])[3] < 2;
 
 			if (edgeDistanceWest) {
 				if (targetRank <= startRank + 2) {
-					moves.push(targetSquare);
+					array.push(targetSquare);
 				}
 			} else if (edgeDistanceEast) {
 				if (targetRank >= startRank - 2) {
-					moves.push(targetSquare);
+					array.push(targetSquare);
 				}
 			} else {
-				moves.push(targetSquare);
+				array.push(targetSquare);
 			}
 		}
 	}
 }
 
-function GenerateAttacks(color) {
-	for (let i = 0; i < 64; i++) {
-		const cell = document.getElementById(`c${i}`);
-		const piece = document.getElementById(`p${i}`);
+// function generateAttacks(color) {
+// 	for (let i = 0; i < 64; i++) {
+// 		const cell = document.getElementById(`c${i}`);
+// 		const piece = document.getElementById(`p${i}`);
+// 		if (cell.hasChildNodes() && piece.classList.contains(color)) {
+// 			if (piece.classList.contains("Pawn")) {
+// 				generatePawnAttacks(i, color);
+// 			} else {
+// 				generateMoves(i, color);
+// 			}
+// 			const opponentColor = color === "White" ? "Black" : "White";
+// 			const king = document.getElementsByClassName(
+// 				`${opponentColor} King`
+// 			)[0];
+// 			const kingSquare = parseInt(king.id.substring(1));
+// 			if (moves.includes(kingSquare)) {
+// 				if (color === "White") {
+// 					checkingPieceBlack.push(piece.id);
+// 				} else {
+// 					checkingPieceWhite.push(piece.id);
+// 				}
+// 			}
+// 		}
+// 	}
+// 	if (color === "White") {
+// 		whiteAttacks = [...moves];
+// 	} else {
+// 		blackAttacks = [...moves];
+// 	}
+// 	moves.length = 0;
+// }
+
+// function generatePawnAttacks(startSquare, color) {
+// 	const captureDelta = color === "White" ? 1 : -1;
+// 	const pawnRank = startSquare % 8;
+// 	let captureRank = (startSquare + 9 * captureDelta) % 8;
+
+// 	if (captureRank === pawnRank + captureDelta) {
+// 		moves.push(startSquare + 9 * captureDelta);
+// 	}
+// 	captureRank = (startSquare + 7 * captureDelta) % 8;
+// 	if (captureRank === pawnRank + captureDelta) {
+// 		moves.push(startSquare + 7 * captureDelta);
+// 	}
+// }
+
+// function checkCheck(color) {
+// 	const king = document.getElementsByClassName(`${color} King`)[0];
+// 	const kingSquare = parseInt(king.id.substring(1));
+// 	if (color === "White") {
+// 		generateAttacks("Black");
+// 		if (blackAttacks.includes(kingSquare)) {
+// 			whiteChecked = true;
+// 			king.classList.add("heartbeat");
+// 		} else {
+// 			whiteChecked = false;
+// 			checkingPieceWhite.length = 0;
+// 			king.classList.remove("heartbeat");
+// 		}
+// 	} else {
+// 		generateAttacks("White");
+// 		if (whiteAttacks.includes(kingSquare)) {
+// 			blackChecked = true;
+// 			king.classList.add("heartbeat");
+// 		} else {
+// 			blackChecked = false;
+// 			checkingPieceBlack.length = 0;
+// 			king.classList.remove("heartbeat");
+// 		}
+// 	}
+// }
+
+// function paintAttacks(color) {
+// 	const colorAttacks = color === "White" ? whiteAttacks : blackAttacks;
+// 	for (let n = 0; n < colorAttacks.length; n++) {
+// 		let cell = document.getElementById("c" + colorAttacks[n]);
+// 		cell.classList.add("moves");
+// 	}
+// }
+
+// function checkIfPieceIsPinned(startSquare, piece, color) {
+// 	let startDirIndex = getStartDirectionIndex(startSquare);
+// 	let endDirIndex = getEndDirectionIndex(startSquare);
+// 	let kingDirection;
+// 	for (
+// 		let directionIndex = startDirIndex;
+// 		directionIndex < endDirIndex;
+// 		directionIndex++
+// 	) {
+// 		generateLinesInDirection(startSquare, directionIndex, color);
+// 		if (movesContainKing(color)) {
+// 			kingDirection = directionIndex;
+// 			moves.length = 0;
+// 			break;
+// 		}
+// 	}
+// 	generateLines(startSquare, kingDirection, color);
+// }
+
+// function generateLines(startSquare, kingDirection, color) {
+// 	let piecesInLine = 0;
+// 	let pieceId;
+// 	generateLinesInDirection(startSquare, kingDirection, color);
+// 	moves.forEach((move) => {
+// 		const cell = document.getElementById(`c${move}`);
+// 		if (cell.hasChildNodes()) {
+// 			piecesInLine++;
+// 			if (
+// 				!document.getElementById(`p${move}`).classList.contains("King")
+// 			) {
+// 				pieceId = move;
+// 			}
+// 		}
+// 	});
+// 	if (piecesInLine === 2) {
+// 		document.getElementById(`p${pieceId}`).classList.add("pinned");
+// 	} else {
+// 		moves.length = 0;
+// 	}
+// }
+
+// function movesContainKing(color) {
+// 	const opponentColor = color === "White" ? "Black" : "White";
+// 	const king = document.getElementsByClassName(`${opponentColor} King`)[0];
+// 	const kingSquare = parseInt(king.id.substring(1));
+// 	return moves.includes(kingSquare);
+// }
+
+// function generateLinesInDirection(startSquare, directionIndex, color) {
+// 	for (
+// 		let n = 0;
+// 		n < Object.values(numSquaresToEdge[startSquare])[directionIndex];
+// 		n++
+// 	) {
+// 		let targetSquare =
+// 			startSquare + directionOffset[directionIndex] * (n + 1);
+
+// 		if (isBlockedByFriendlyPiece(targetSquare, color)) {
+// 			break;
+// 		}
+
+// 		moves.push(targetSquare);
+
+// 		if (isBlockedByOpponentKing(targetSquare, color)) {
+// 			break;
+// 		}
+// 	}
+// }
+
+// function isBlockedByOpponentKing(targetSquare, color) {
+// 	return (
+// 		isSquareOccupied(targetSquare) &&
+// 		color != document.getElementById("p" + targetSquare).classList[0] &&
+// 		document.getElementById(`p${targetSquare}`).classList.contains("King")
+// 	);
+// }
+
+// function isPinned(piece) {
+// 	return piece.classList.contains("pinned");
+// }
+
+// function pinDirection(piece) {
+// 	if (isPinned(piece)) {
+// 		return piece.classList[3];
+// 	}
+// }
+
+function generateAttacks(color) {
+	const colorAttacks = color === "White" ? whiteAttacks : blackAttacks;
+	const colorCheckingPiece =
+		color === "White" ? whiteCheckingPiece : blackCheckingPiece;
+	const opponentColor = color === "White" ? "Black" : "White";
+	const opponentKing = document.getElementsByClassName(
+		`${opponentColor} King`
+	)[0];
+	const opponentKingSquare = parseInt(opponentKing.id.substring(1));
+	for (let tile = 0; tile < 64; tile++) {
+		const cell = document.getElementById(`c${tile}`);
+		const piece = document.getElementById(`p${tile}`);
+		let pieceAttacks = new Array();
 		if (cell.hasChildNodes() && piece.classList.contains(color)) {
-			GenerateMoves(i, color);
-			const opponentColor = color === "White" ? "Black" : "White";
-			const king = document.getElementsByClassName(
-				`${opponentColor} King`
-			)[0];
-			const kingSquare = parseInt(king.id.substring(1));
-			if (moves.includes(kingSquare)) {
-				if (color === "White") {
-					checkingPieceBlack.push(piece.id);
-				} else {
-					checkingPieceWhite.push(piece.id);
-				}
+			if (piece.classList.contains("Pawn")) {
+				generatePawnAttacks(tile, color, pieceAttacks);
+			} else {
+				generateMoves(tile, color, pieceAttacks);
 			}
+			if (pieceAttacks.includes(opponentKingSquare)) {
+				color === "White"
+					? whiteCheckingPiece.push(parseInt(piece.id.substring(1)))
+					: blackCheckingPiece.push(parseInt(piece.id.substring(1)));
+			}
+			colorAttacks.push(...pieceAttacks);
+			clearArray(pieceAttacks);
 		}
 	}
-	if (color === "White") {
-		whiteAttacks = [...moves];
-	} else {
-		blackAttacks = [...moves];
+	if (!colorAttacks.includes(opponentKingSquare)) {
+		clearArray(colorCheckingPiece);
 	}
-	moves.length = 0;
+	removeDuplicates(colorAttacks);
+	kingInCheck(color);
 }
 
-function checkCheck(color) {
-	const king = document.getElementsByClassName(`${color} King`)[0];
-	const kingSquare = parseInt(king.id.substring(1));
-	if (color === "White") {
-		GenerateAttacks("Black");
-		if (blackAttacks.includes(kingSquare)) {
-			whiteChecked = true;
-			king.classList.add("heartbeat");
-		} else {
-			whiteChecked = false;
-			checkingPieceWhite.length = 0;
-			king.classList.remove("heartbeat");
-		}
-	} else {
-		GenerateAttacks("White");
-		if (whiteAttacks.includes(kingSquare)) {
-			blackChecked = true;
-			king.classList.add("heartbeat");
-		} else {
-			blackChecked = false;
-			checkingPieceBlack.length = 0;
-			king.classList.remove("heartbeat");
-		}
+function generatePawnAttacks(startSquare, color, array) {
+	const captureDelta = color === "White" ? 1 : -1;
+	const pawnRank = startSquare % 8;
+	let captureRank = (startSquare + 9 * captureDelta) % 8;
+
+	if (captureRank === pawnRank + captureDelta) {
+		array.push(startSquare + 9 * captureDelta);
 	}
+	captureRank = (startSquare + 7 * captureDelta) % 8;
+	if (captureRank === pawnRank + captureDelta) {
+		array.push(startSquare + 7 * captureDelta);
+	}
+}
+
+function clearArray(array) {
+	array.length = 0;
 }
 
 function paintAttacks(color) {
@@ -554,5 +740,68 @@ function paintAttacks(color) {
 	for (let n = 0; n < colorAttacks.length; n++) {
 		let cell = document.getElementById("c" + colorAttacks[n]);
 		cell.classList.add("moves");
+	}
+}
+
+function removeDuplicates(array) {
+	const uniqueSet = new Set(array);
+	array.splice(0, array.length, ...uniqueSet);
+}
+
+function kingInCheck(color) {
+	const king = document.getElementsByClassName(`${color} King`)[0];
+	const kingSquare = parseInt(king.id.substring(1));
+	const opponentColorAttacks =
+		color === "White" ? blackAttacks : whiteAttacks;
+	if (opponentColorAttacks.includes(kingSquare)) {
+		color === "white" ? (whiteChecked = true) : (blackChecked = true);
+	} else {
+		color === "white" ? (whiteChecked = false) : (blackChecked = false);
+	}
+}
+
+function generateCheckingLines(color, array) {
+	const checkingPieces =
+		color === "White" ? whiteCheckingPiece : blackCheckingPiece;
+
+	checkingPieces.forEach((piece) => {
+		generateKingAttackingLine(piece, color, array);
+	});
+}
+
+function generateKingAttackingLine(startSquare, color, array) {
+	let startDirIndex = getStartDirectionIndex(startSquare);
+	let endDirIndex = getEndDirectionIndex(startSquare);
+	const opponentColor = color === "White" ? "Black" : "White";
+	const opponentKing = document.getElementsByClassName(
+		`${opponentColor} King`
+	)[0];
+	const opponentKingSquare = parseInt(opponentKing.id.substring(1));
+	let tempArray = [];
+	let kingDirection;
+	for (
+		let directionIndex = startDirIndex;
+		directionIndex < endDirIndex;
+		directionIndex++
+	) {
+		generateMovesInDirection(startSquare, directionIndex, color, tempArray);
+		if (tempArray.includes(opponentKingSquare)) {
+			kingDirection = directionIndex;
+			break;
+		}
+		clearArray(tempArray);
+	}
+	generateMovesInDirection(startSquare, kingDirection, color, array);
+	generateMovesInDirection(opponentKingSquare, kingDirection, color, array);
+}
+
+function generateLegalMoves(startSquare, color, array) {
+	const opponentColor = color === "White" ? "Black" : "White";
+	const opponentKing = document.getElementsByClassName(
+		`${opponentColor} King`
+	)[0];
+	const opponentKingSquare = parseInt(opponentKing.id.substring(1));
+	const colorChecked = color === "White" ? whiteChecked : blackChecked;
+	if (colorChecked) {
 	}
 }
