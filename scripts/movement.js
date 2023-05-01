@@ -1,10 +1,10 @@
 "use strict";
 
 // TO DO :
+// keeping track of how many moves a player can play
 // defended pieces
 // -pinned pieces
 // -checkmate
-// -castling
 // -add UI
 // -make it responsive and mobile friendly
 // -add ranks and files to cell edges
@@ -31,8 +31,10 @@ var whenCheckedMoves = new Array();
 
 var whiteAttacks = new Array();
 var blackAttacks = new Array();
-var whiteCheckingPiece = new Array();
-var blackCheckingPiece = new Array();
+var whiteCheckingPieces = new Array();
+var blackCheckingPieces = new Array();
+var whiteDefendingPieces = new Array();
+var blackDefendingPieces = new Array();
 var whitePinningLines = new Array();
 var blackPinningLines = new Array();
 var whiteChecked = false;
@@ -49,6 +51,15 @@ var lastMove = {
 	from: 0,
 	to: 0,
 	piece: 0,
+};
+
+var whiteCastle = {
+	queenSide: true,
+	kingSide: true,
+};
+var blackCastle = {
+	queenSide: true,
+	kingSide: true,
 };
 
 for (let i = 0; i < cells.length; i++) {
@@ -103,15 +114,49 @@ function handleCapture(clickedCell, clickedPiece, selectedPiece) {
 }
 
 function handleSameColorPiece(clickedCell, clickedPiece) {
-	deleteMoves();
-	document
-		.getElementById(selectedId)
-		.parentElement.classList.remove("selected");
-	toggleSelected(clickedCell);
-	selectedId = clickedPiece.id;
-	updateSelectedIndex(clickedPiece);
-	generateLegalMoves(parseInt(selectedId.substring(1)), colorToMove, moves);
-	paintMoves();
+	let selectedPiece = document.getElementById(selectedId);
+	const selectedPieceColor = clickedPiece.classList[0];
+	const kingRookSquare = selectedPieceColor === "White" ? 7 : 63;
+	const queenRookSquare = selectedPieceColor === "White" ? 0 : 56;
+	const rookType = Piece[clickedPiece.classList[1]];
+	const rookIndex =
+		parseInt(
+			clickedPiece.classList[0] === "Black" ? Piece.Black : Piece.White
+		) + parseInt(rookType);
+	if (
+		selectedPiece.classList.contains("King") &&
+		clickedPiece.classList.contains("Rook")
+	) {
+		if (clickedPiece.id === `p${kingRookSquare}`) {
+			const kingToGo = `c${parseInt(selectedId.substring(1)) + 2}`;
+			const rookToGo = `c${parseInt(clickedPiece.id.substring(1)) - 2}`;
+			placePiece(selectedIndex, kingToGo);
+			placePiece(rookIndex, rookToGo);
+		} else if (clickedPiece.id === `p${queenRookSquare}`) {
+			const kingToGo = `c${parseInt(selectedId.substring(1)) - 2}`;
+			const rookToGo = `c${parseInt(clickedPiece.id.substring(1)) + 3}`;
+			placePiece(selectedIndex, kingToGo);
+			placePiece(rookIndex, rookToGo);
+		}
+		createLastMove(clickedCell, selectedPiece);
+		cleanupAndUpdate();
+		selectedPiece.remove();
+		clickedPiece.remove();
+	} else {
+		deleteMoves();
+		document
+			.getElementById(selectedId)
+			.parentElement.classList.remove("selected");
+		toggleSelected(clickedCell);
+		selectedId = clickedPiece.id;
+		updateSelectedIndex(clickedPiece);
+		generateLegalMoves(
+			parseInt(selectedId.substring(1)),
+			colorToMove,
+			moves
+		);
+		paintMoves();
+	}
 }
 
 function handleNewSelection(clickedCell, clickedPiece) {
@@ -224,6 +269,7 @@ function moveMade() {
 	Board.movesMade += 1;
 	deleteLastMoves();
 	paintLastMoves();
+	castlingPiecesMoved(colorToMove);
 	colorToMove = colorToMove === "White" ? "Black" : "White";
 	clearArray(whiteAttacks);
 	clearArray(blackAttacks);
@@ -446,7 +492,7 @@ function isValidKingMove(targetSquare, color) {
 	const opponentColorAttacks =
 		color === "White" ? blackAttacks : whiteAttacks;
 	const opponentColorCheckingPiece =
-		color === "White" ? blackCheckingPiece : whiteCheckingPiece;
+		color === "White" ? blackCheckingPieces : whiteCheckingPieces;
 	let checkingLineArray = [];
 	if (opponentColorCheckingPiece.length > 0) {
 		generateCheckingLines(opponentColor, checkingLineArray);
@@ -520,12 +566,68 @@ function generateKingMoves(startSquare, color, array) {
 			}
 		}
 	}
+	generateCastlingMoves(startSquare, color, array);
+}
+
+function generateCastlingMoves(startSquare, color, array) {
+	const colorCastle = color === "White" ? whiteCastle : blackCastle;
+	const kingChecked = color === "White" ? whiteChecked : blackChecked;
+	const opponentColorAttacks =
+		color === "White" ? blackAttacks : whiteAttacks;
+
+	const whiteCastlingSquares = {
+		kingSide: [5, 6],
+		queenSide: [1, 2, 3],
+	};
+	const blackCastlingSquares = {
+		kingSide: [61, 62],
+		queenSide: [57, 58, 59],
+	};
+
+	const colorCastlingSquares =
+		color === "White" ? whiteCastlingSquares : blackCastlingSquares;
+
+	const castlingSquaresAttacked = {
+		kingSide: opponentColorAttacks.some((cell) =>
+			colorCastlingSquares.kingSide.includes(cell)
+		),
+		queenSide: opponentColorAttacks.some((cell) =>
+			colorCastlingSquares.queenSide.includes(cell)
+		),
+	};
+	const castlingSquaresOccupied = {
+		kingSide: colorCastlingSquares.kingSide.some((id) => {
+			const cell = document.getElementById(`c${id}`);
+			return cell && cell.hasChildNodes();
+		}),
+		queenSide: colorCastlingSquares.queenSide.some((id) => {
+			const cell = document.getElementById(`c${id}`);
+			return cell && cell.hasChildNodes();
+		}),
+	};
+
+	if (!kingChecked) {
+		if (
+			colorCastle.kingSide &&
+			!castlingSquaresAttacked.kingSide &&
+			!castlingSquaresOccupied.kingSide
+		) {
+			array.push(startSquare + 3);
+		}
+		if (
+			colorCastle.queenSide &&
+			!castlingSquaresAttacked.queenSide &&
+			!castlingSquaresOccupied.queenSide
+		) {
+			array.push(startSquare - 4);
+		}
+	}
 }
 
 function generateAttacks(color) {
 	const colorAttacks = color === "White" ? whiteAttacks : blackAttacks;
 	const colorCheckingPiece =
-		color === "White" ? whiteCheckingPiece : blackCheckingPiece;
+		color === "White" ? whiteCheckingPieces : blackCheckingPieces;
 	const opponentColor = color === "White" ? "Black" : "White";
 	const opponentKing = document.getElementsByClassName(
 		`${opponentColor} King`
@@ -543,8 +645,8 @@ function generateAttacks(color) {
 			}
 			if (pieceAttacks.includes(opponentKingSquare)) {
 				color === "White"
-					? whiteCheckingPiece.push(parseInt(piece.id.substring(1)))
-					: blackCheckingPiece.push(parseInt(piece.id.substring(1)));
+					? whiteCheckingPieces.push(parseInt(piece.id.substring(1)))
+					: blackCheckingPieces.push(parseInt(piece.id.substring(1)));
 			}
 			colorAttacks.push(...pieceAttacks);
 			clearArray(pieceAttacks);
@@ -602,7 +704,7 @@ function kingInCheck(color) {
 
 function generateCheckingLines(color, array) {
 	const checkingPieces =
-		color === "White" ? whiteCheckingPiece : blackCheckingPiece;
+		color === "White" ? whiteCheckingPieces : blackCheckingPieces;
 
 	checkingPieces.forEach((piece) => {
 		generateKingAttackingLine(piece, color, array);
@@ -615,35 +717,41 @@ function generateKingAttackingLine(
 	array,
 	behindKing = true
 ) {
-	let startDirIndex = getStartDirectionIndex(startSquare);
-	let endDirIndex = getEndDirectionIndex(startSquare);
 	const opponentColor = color === "White" ? "Black" : "White";
 	const opponentKing = document.getElementsByClassName(
 		`${opponentColor} King`
 	)[0];
 	const opponentKingSquare = parseInt(opponentKing.id.substring(1));
+	const startDirIndex = getStartDirectionIndex(startSquare);
+	const endDirIndex = getEndDirectionIndex(startSquare);
+
 	let tempArray = [];
 	let kingDirection;
+
 	for (
 		let directionIndex = startDirIndex;
 		directionIndex < endDirIndex;
 		directionIndex++
 	) {
 		generateMovesInDirection(startSquare, directionIndex, color, tempArray);
+
 		if (tempArray.includes(opponentKingSquare)) {
 			kingDirection = directionIndex;
+			generateMovesInDirection(startSquare, kingDirection, color, array);
+
+			if (behindKing) {
+				generateMovesInDirection(
+					opponentKingSquare,
+					kingDirection,
+					color,
+					array
+				);
+			}
+
 			break;
 		}
+
 		clearArray(tempArray);
-	}
-	generateMovesInDirection(startSquare, kingDirection, color, array);
-	if (behindKing) {
-		generateMovesInDirection(
-			opponentKingSquare,
-			kingDirection,
-			color,
-			array
-		);
 	}
 }
 
@@ -655,36 +763,59 @@ function generateLegalMoves(startSquare, color, array) {
 	const opponentKingSquare = parseInt(opponentKing.id.substring(1));
 	const colorChecked = color === "White" ? whiteChecked : blackChecked;
 	const opponentCheckingPieces =
-		color === "White" ? blackCheckingPiece : whiteCheckingPiece;
+		color === "White" ? blackCheckingPieces : whiteCheckingPieces;
 	const piece = document.getElementById(`p${startSquare}`);
+
 	let kingAttackingLine = [];
 	let tempMoves = [];
+	let legalSquares = [];
+
+	generateMoves(startSquare, color, tempMoves);
+
 	if (colorChecked) {
 		if (opponentCheckingPieces.length > 1) {
 			if (piece.classList.contains("King")) {
-				generateMoves(startSquare, color, array);
+				array.push(...tempMoves);
 			}
 		} else {
 			if (!piece.classList.contains("King")) {
-				generateMoves(startSquare, color, tempMoves);
 				generateKingAttackingLine(
 					opponentCheckingPieces[0],
 					opponentColor,
 					kingAttackingLine,
 					false
 				);
-				const legalSquares = tempMoves.filter((element) =>
+				legalSquares = tempMoves.filter((element) =>
 					kingAttackingLine.includes(element)
 				);
+
 				if (tempMoves.includes(opponentCheckingPieces[0])) {
 					legalSquares.push(opponentCheckingPieces[0]);
 				}
-				array.push(...legalSquares);
 			} else {
-				generateMoves(startSquare, color, array);
+				legalSquares = tempMoves;
 			}
 		}
 	} else {
-		generateMoves(startSquare, color, array);
+		legalSquares = tempMoves;
+	}
+
+	array.push(...legalSquares);
+}
+
+function castlingPiecesMoved(color) {
+	const colorCastle = color === "White" ? whiteCastle : blackCastle;
+	const kingRookSquare = color === "White" ? 7 : 63;
+	const queenRookSquare = color === "White" ? 0 : 56;
+	if (lastMove.piece === "King") {
+		colorCastle.kingSide = false;
+		colorCastle.queenSide = false;
+	}
+	if (lastMove.piece === "Rook") {
+		if (lastMove.from === kingRookSquare) {
+			colorCastle.kingSide = false;
+		} else if (lastMove.from === queenRookSquare) {
+			colorCastle.queenSide = false;
+		}
 	}
 }
