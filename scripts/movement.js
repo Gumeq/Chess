@@ -1,10 +1,9 @@
 "use strict";
 
 // TO DO :
-// keeping track of how many moves a player can play
 // defended pieces
 // -pinned pieces
-// -checkmate
+// change the clutter of variables to classes
 // -add UI
 // -make it responsive and mobile friendly
 // -add ranks and files to cell edges
@@ -39,6 +38,8 @@ var whitePinningLines = new Array();
 var blackPinningLines = new Array();
 var whiteChecked = false;
 var blackChecked = false;
+var whiteMoves = new Array();
+var blackMoves = new Array();
 
 var whenCheckedMoves;
 
@@ -267,6 +268,11 @@ function paintLastMoves() {
 
 function moveMade() {
 	Board.movesMade += 1;
+	clearArray(whiteMoves);
+	clearArray(blackMoves);
+	calculateMoves();
+	checkPawnPromotingMove("White");
+	checkPawnPromotingMove("Black");
 	deleteLastMoves();
 	paintLastMoves();
 	castlingPiecesMoved(colorToMove);
@@ -275,6 +281,8 @@ function moveMade() {
 	clearArray(blackAttacks);
 	generateAttacks("White");
 	generateAttacks("Black");
+	checkMate("White");
+	checkMate("Black");
 }
 
 // This function precomputes data for the number of squares in each direction from a given square on the board.
@@ -420,6 +428,7 @@ function generatePawnCapturingMoves(startSquare, color, array) {
 	const addMoveIfCapturable = (delta) => {
 		const targetSquare = startSquare + delta;
 		if (
+			isSquareOnBoard(targetSquare) &&
 			isSquareOccupied(targetSquare) &&
 			document.getElementById("p" + targetSquare).classList[0] !== color
 		) {
@@ -435,7 +444,7 @@ function generatePawnNonCapturingMoves(startSquare, color, array) {
 	const forwardDelta = color === "White" ? 8 : -8;
 	const targetSquare = startSquare + forwardDelta;
 
-	if (!isSquareOccupied(targetSquare)) {
+	if (isSquareOnBoard(targetSquare) && !isSquareOccupied(targetSquare)) {
 		array.push(targetSquare);
 	}
 }
@@ -476,6 +485,18 @@ function generatePawnEnPassantMoves(startSquare, color, array) {
 
 		addEnPassantMove(1);
 		addEnPassantMove(-1);
+	}
+}
+
+function checkPawnPromotingMove(color) {
+	const lastRank = color === "White" ? 0 : 7;
+	const colorIndex = color === "White" ? 8 : 16;
+	if (
+		Math.floor((63 - lastMove.to) / 8) === lastRank &&
+		lastMove.piece === "Pawn"
+	) {
+		document.getElementById(`p${lastMove.to}`).remove();
+		placePiece(colorIndex + Piece.Queen, `c${lastMove.to}`);
 	}
 }
 
@@ -817,5 +838,27 @@ function castlingPiecesMoved(color) {
 		} else if (lastMove.from === queenRookSquare) {
 			colorCastle.queenSide = false;
 		}
+	}
+}
+
+function calculateMoves() {
+	for (let square = 0; square <= 63; square++) {
+		const cell = document.getElementById(`c${square}`);
+		if (cell.hasChildNodes()) {
+			const piece = document.getElementById(`p${square}`);
+			if (piece.classList.contains("White")) {
+				generateLegalMoves(square, "White", whiteMoves);
+			}
+			if (piece.classList.contains("Black")) {
+				generateLegalMoves(square, "Black", blackMoves);
+			}
+		}
+	}
+}
+function checkMate(color) {
+	const colorMoves = color === "White" ? whiteMoves : blackMoves;
+	const colorChecked = color === "White" ? whiteChecked : blackChecked;
+	if (colorMoves.length === 0 && colorChecked) {
+		console.log("CHECKMATE");
 	}
 }

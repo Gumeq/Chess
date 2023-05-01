@@ -3,7 +3,7 @@ var colorToMove = "White";
 // Starting FEN String
 
 loadPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-// loadPositionFromFen("8/4k3/8/8/1N6/3Q1R2/6B1/K7");
+// loadPositionFromFen("7k/8/5pp1/8/8/8/1PP5/5K2");
 var whiteKingId = parseInt(
 	document.querySelector(".White.King").id.substring(1)
 );
@@ -12,3 +12,4 @@ var blackKingId = parseInt(
 );
 Board.printBoard();
 precomputedData();
+calculateMoves();
