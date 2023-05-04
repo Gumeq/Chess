@@ -1,7 +1,6 @@
 "use strict";
 
 // TO DO :
-// defended pieces
 // -pinned pieces
 // change the clutter of variables to classes
 // -add UI
@@ -28,40 +27,41 @@ var moves = new Array();
 var legalMoves = new Array();
 var whenCheckedMoves = new Array();
 
-var whiteAttacks = new Array();
-var blackAttacks = new Array();
-var whiteCheckingPieces = new Array();
-var blackCheckingPieces = new Array();
-var whiteDefendingPieces = new Array();
-var blackDefendingPieces = new Array();
-var whitePinningLines = new Array();
-var blackPinningLines = new Array();
-var whiteChecked = false;
-var blackChecked = false;
-var whiteMoves = new Array();
-var blackMoves = new Array();
-
-var whenCheckedMoves;
-
-const Move = {
-	StartSquare: 0,
-	TargetSquare: 0,
-};
-
 var lastMove = {
 	from: 0,
 	to: 0,
 	piece: 0,
 };
 
-var whiteCastle = {
-	queenSide: true,
-	kingSide: true,
-};
-var blackCastle = {
-	queenSide: true,
-	kingSide: true,
-};
+class PieceClass {
+	constructor() {
+		this.attacks = [];
+		this.checkingPieces = [];
+		this.defendingPieces = [];
+		this.pinningLines = [];
+		this.moves = [];
+		this.checked = false;
+		this.castle = {
+			queenSide: true,
+			kingSide: true,
+		};
+	}
+}
+
+class WhitePiece extends PieceClass {
+	constructor() {
+		super();
+	}
+}
+
+class BlackPiece extends PieceClass {
+	constructor() {
+		super();
+	}
+}
+
+const whitePiece = new WhitePiece();
+const blackPiece = new BlackPiece();
 
 for (let i = 0; i < cells.length; i++) {
 	cells[i].addEventListener("click", function () {
@@ -268,19 +268,19 @@ function paintLastMoves() {
 
 function moveMade() {
 	Board.movesMade += 1;
-	clearArray(whiteMoves);
-	clearArray(blackMoves);
-	calculateMoves();
+	clearArray(whitePiece.moves);
+	clearArray(blackPiece.moves);
 	checkPawnPromotingMove("White");
 	checkPawnPromotingMove("Black");
 	deleteLastMoves();
 	paintLastMoves();
 	castlingPiecesMoved(colorToMove);
 	colorToMove = colorToMove === "White" ? "Black" : "White";
-	clearArray(whiteAttacks);
-	clearArray(blackAttacks);
-	generateAttacks("White");
+	clearArray(blackPiece.attacks);
 	generateAttacks("Black");
+	clearArray(whitePiece.attacks);
+	generateAttacks("White");
+	calculateMoves();
 	checkMate("White");
 	checkMate("Black");
 }
@@ -324,7 +324,7 @@ function isSquareOnBoard(square) {
 }
 
 // This function generates moves for a given chess piece based on its type and current position
-function generateMoves(startSquare, color, array) {
+function generateMoves(startSquare, color, array, includeFriendly) {
 	// Determine the rank and file of the current position on the board
 	const rank = Math.floor((63 - startSquare) / 8);
 	const file = startSquare % 8;
@@ -344,16 +344,26 @@ function generateMoves(startSquare, color, array) {
 					generatePawnMoves(startSquare, color, array);
 					break;
 				case 3:
-					generateKnightMoves(startSquare, color, array);
+					generateKnightMoves(
+						startSquare,
+						color,
+						array,
+						includeFriendly
+					);
 					break;
 				default:
-					generateSlidingMoves(startSquare, color, array);
+					generateSlidingMoves(
+						startSquare,
+						color,
+						array,
+						includeFriendly
+					);
 			}
 		}
 	}
 }
 
-function generateSlidingMoves(startSquare, color, array) {
+function generateSlidingMoves(startSquare, color, array, includeFriendly) {
 	let startDirIndex = getStartDirectionIndex(startSquare);
 	let endDirIndex = getEndDirectionIndex(startSquare);
 
@@ -362,7 +372,13 @@ function generateSlidingMoves(startSquare, color, array) {
 		directionIndex < endDirIndex;
 		directionIndex++
 	) {
-		generateMovesInDirection(startSquare, directionIndex, color, array);
+		generateMovesInDirection(
+			startSquare,
+			directionIndex,
+			color,
+			array,
+			includeFriendly
+		);
 	}
 }
 
@@ -380,7 +396,13 @@ function getEndDirectionIndex(startSquare) {
 		: 8;
 }
 
-function generateMovesInDirection(startSquare, directionIndex, color, array) {
+function generateMovesInDirection(
+	startSquare,
+	directionIndex,
+	color,
+	array,
+	includeFriendly = false
+) {
 	for (
 		let n = 0;
 		n < Object.values(numSquaresToEdge[startSquare])[directionIndex];
@@ -389,13 +411,19 @@ function generateMovesInDirection(startSquare, directionIndex, color, array) {
 		let targetSquare =
 			startSquare + directionOffset[directionIndex] * (n + 1);
 
-		if (isBlockedByFriendlyPiece(targetSquare, color)) {
+		if (
+			isBlockedByFriendlyPiece(targetSquare, color) &&
+			includeFriendly === false
+		) {
 			break;
 		}
 
 		array.push(targetSquare);
 
-		if (isBlockedByOpponentPiece(targetSquare, color)) {
+		if (
+			isBlockedByOpponentPiece(targetSquare, color) ||
+			isBlockedByFriendlyPiece(targetSquare, color)
+		) {
 			break;
 		}
 	}
@@ -500,20 +528,24 @@ function checkPawnPromotingMove(color) {
 	}
 }
 
-function isValidMove(targetSquare, color) {
+function isValidMove(targetSquare, color, includeFriendly = false) {
 	return (
 		(isSquareOccupied(targetSquare) &&
-			document.getElementById("p" + targetSquare).classList[0] !=
-				color) ||
+			!document
+				.getElementById("p" + targetSquare)
+				.classList.contains(color)) ||
+		includeFriendly ||
 		!isSquareOccupied(targetSquare)
 	);
 }
 function isValidKingMove(targetSquare, color) {
 	const opponentColor = color === "White" ? "Black" : "White";
 	const opponentColorAttacks =
-		color === "White" ? blackAttacks : whiteAttacks;
+		color === "White" ? blackPiece.attacks : whitePiece.attacks;
 	const opponentColorCheckingPiece =
-		color === "White" ? blackCheckingPieces : whiteCheckingPieces;
+		color === "White"
+			? blackPiece.checkingPieces
+			: whitePiece.checkingPieces;
 	let checkingLineArray = [];
 	if (opponentColorCheckingPiece.length > 0) {
 		generateCheckingLines(opponentColor, checkingLineArray);
@@ -528,7 +560,7 @@ function isValidKingMove(targetSquare, color) {
 	);
 }
 
-function generateKnightMoves(startSquare, color, array) {
+function generateKnightMoves(startSquare, color, array, includeFriendly) {
 	let targetSquare;
 	let targetRank;
 	const startRank = startSquare % 8;
@@ -537,7 +569,10 @@ function generateKnightMoves(startSquare, color, array) {
 		targetSquare = startSquare + directionOffsetKnight[n];
 		const targetIsOnBoard = isSquareOnBoard(targetSquare);
 
-		if (targetIsOnBoard && isValidMove(targetSquare, color)) {
+		if (
+			targetIsOnBoard &&
+			isValidMove(targetSquare, color, includeFriendly)
+		) {
 			targetRank = targetSquare % 8;
 			const edgeDistanceWest =
 				Object.values(numSquaresToEdge[startSquare])[2] < 2;
@@ -591,10 +626,12 @@ function generateKingMoves(startSquare, color, array) {
 }
 
 function generateCastlingMoves(startSquare, color, array) {
-	const colorCastle = color === "White" ? whiteCastle : blackCastle;
-	const kingChecked = color === "White" ? whiteChecked : blackChecked;
+	const colorCastle =
+		color === "White" ? whitePiece.castle : blackPiece.castle;
+	const kingChecked =
+		color === "White" ? whitePiece.checked : blackPiece.checked;
 	const opponentColorAttacks =
-		color === "White" ? blackAttacks : whiteAttacks;
+		color === "White" ? blackPiece.attacks : whitePiece.attacks;
 
 	const whiteCastlingSquares = {
 		kingSide: [5, 6],
@@ -619,11 +656,11 @@ function generateCastlingMoves(startSquare, color, array) {
 	const castlingSquaresOccupied = {
 		kingSide: colorCastlingSquares.kingSide.some((id) => {
 			const cell = document.getElementById(`c${id}`);
-			return cell && cell.hasChildNodes();
+			return cell.hasChildNodes();
 		}),
 		queenSide: colorCastlingSquares.queenSide.some((id) => {
 			const cell = document.getElementById(`c${id}`);
-			return cell && cell.hasChildNodes();
+			return cell.hasChildNodes();
 		}),
 	};
 
@@ -646,9 +683,12 @@ function generateCastlingMoves(startSquare, color, array) {
 }
 
 function generateAttacks(color) {
-	const colorAttacks = color === "White" ? whiteAttacks : blackAttacks;
+	const colorAttacks =
+		color === "White" ? whitePiece.attacks : blackPiece.attacks;
 	const colorCheckingPiece =
-		color === "White" ? whiteCheckingPieces : blackCheckingPieces;
+		color === "White"
+			? whitePiece.checkingPieces
+			: blackPiece.checkingPieces;
 	const opponentColor = color === "White" ? "Black" : "White";
 	const opponentKing = document.getElementsByClassName(
 		`${opponentColor} King`
@@ -662,12 +702,16 @@ function generateAttacks(color) {
 			if (piece.classList.contains("Pawn")) {
 				generatePawnAttacks(tile, color, pieceAttacks);
 			} else {
-				generateMoves(tile, color, pieceAttacks);
+				generateMoves(tile, color, pieceAttacks, true);
 			}
 			if (pieceAttacks.includes(opponentKingSquare)) {
 				color === "White"
-					? whiteCheckingPieces.push(parseInt(piece.id.substring(1)))
-					: blackCheckingPieces.push(parseInt(piece.id.substring(1)));
+					? whitePiece.checkingPieces.push(
+							parseInt(piece.id.substring(1))
+					  )
+					: blackPiece.checkingPieces.push(
+							parseInt(piece.id.substring(1))
+					  );
 			}
 			colorAttacks.push(...pieceAttacks);
 			clearArray(pieceAttacks);
@@ -677,7 +721,7 @@ function generateAttacks(color) {
 		clearArray(colorCheckingPiece);
 	}
 	removeDuplicates(colorAttacks);
-	kingInCheck(color);
+	kingInCheck();
 }
 
 function generatePawnAttacks(startSquare, color, array) {
@@ -699,7 +743,8 @@ function clearArray(array) {
 }
 
 function paintAttacks(color) {
-	const colorAttacks = color === "White" ? whiteAttacks : blackAttacks;
+	const colorAttacks =
+		color === "White" ? whitePiece.attacks : blackPiece.attacks;
 	for (let n = 0; n < colorAttacks.length; n++) {
 		let cell = document.getElementById("c" + colorAttacks[n]);
 		cell.classList.add("moves");
@@ -711,21 +756,28 @@ function removeDuplicates(array) {
 	array.splice(0, array.length, ...uniqueSet);
 }
 
-function kingInCheck(color) {
-	const king = document.getElementsByClassName(`${color} King`)[0];
-	const kingSquare = parseInt(king.id.substring(1));
-	const opponentColorAttacks =
-		color === "White" ? blackAttacks : whiteAttacks;
-	if (opponentColorAttacks.includes(kingSquare)) {
-		color === "white" ? (whiteChecked = true) : (blackChecked = true);
+function kingInCheck() {
+	const whiteKingSquare = parseInt(
+		document.getElementsByClassName(`White King`)[0].id.substring(1)
+	);
+	const blackKingSquare = parseInt(
+		document.getElementsByClassName(`Black King`)[0].id.substring(1)
+	);
+	if (whitePiece.attacks.includes(blackKingSquare)) {
+		blackPiece.checked = true;
+	} else if (blackPiece.attacks.includes(whiteKingSquare)) {
+		whitePiece.checked = true;
 	} else {
-		color === "white" ? (whiteChecked = false) : (blackChecked = false);
+		whitePiece.checked = false;
+		blackPiece.checked = false;
 	}
 }
 
 function generateCheckingLines(color, array) {
 	const checkingPieces =
-		color === "White" ? whiteCheckingPieces : blackCheckingPieces;
+		color === "White"
+			? whitePiece.checkingPieces
+			: blackPiece.checkingPieces;
 
 	checkingPieces.forEach((piece) => {
 		generateKingAttackingLine(piece, color, array);
@@ -782,9 +834,12 @@ function generateLegalMoves(startSquare, color, array) {
 		`${opponentColor} King`
 	)[0];
 	const opponentKingSquare = parseInt(opponentKing.id.substring(1));
-	const colorChecked = color === "White" ? whiteChecked : blackChecked;
+	const colorChecked =
+		color === "White" ? whitePiece.checked : blackPiece.checked;
 	const opponentCheckingPieces =
-		color === "White" ? blackCheckingPieces : whiteCheckingPieces;
+		color === "White"
+			? blackPiece.checkingPieces
+			: whitePiece.checkingPieces;
 	const piece = document.getElementById(`p${startSquare}`);
 
 	let kingAttackingLine = [];
@@ -825,7 +880,8 @@ function generateLegalMoves(startSquare, color, array) {
 }
 
 function castlingPiecesMoved(color) {
-	const colorCastle = color === "White" ? whiteCastle : blackCastle;
+	const colorCastle =
+		color === "White" ? whitePiece.castle : blackPiece.castle;
 	const kingRookSquare = color === "White" ? 7 : 63;
 	const queenRookSquare = color === "White" ? 0 : 56;
 	if (lastMove.piece === "King") {
@@ -847,17 +903,18 @@ function calculateMoves() {
 		if (cell.hasChildNodes()) {
 			const piece = document.getElementById(`p${square}`);
 			if (piece.classList.contains("White")) {
-				generateLegalMoves(square, "White", whiteMoves);
+				generateLegalMoves(square, "White", whitePiece.moves);
 			}
 			if (piece.classList.contains("Black")) {
-				generateLegalMoves(square, "Black", blackMoves);
+				generateLegalMoves(square, "Black", blackPiece.moves);
 			}
 		}
 	}
 }
 function checkMate(color) {
-	const colorMoves = color === "White" ? whiteMoves : blackMoves;
-	const colorChecked = color === "White" ? whiteChecked : blackChecked;
+	const colorMoves = color === "White" ? whitePiece.moves : blackPiece.moves;
+	const colorChecked =
+		color === "White" ? whitePiece.checked : blackPiece.checked;
 	if (colorMoves.length === 0 && colorChecked) {
 		console.log("CHECKMATE");
 	}
